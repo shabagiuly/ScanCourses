@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CheckCourses - V23</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛒</text></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
+    <script src="https://unpkg.com/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        .loader { border-top-color: #3b82f6; animation: spinner 1.5s linear infinite; }
+        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .checked-item { background-color: #f0fdf4 !important; border-color: #bbf7d0 !important; opacity: 0.6; }
+        .checked-text { text-decoration: line-through; color: #166534; }
+        .tab-active { color: #2563eb !important; border-top: 4px solid #2563eb; }
+        #reader { width: 100%; border-radius: 32px; overflow: hidden; background: #000; position: relative; }
+        #reader video, #reader canvas { border-radius: 32px; width: 100%; }
+        .drawingBuffer { position: absolute; top: 0; left: 0; z-index: 10; }
+        .safe-bottom { padding-bottom: calc(1.5rem + env(safe-area-inset-bottom)); }
+        .cat-badge { font-size: 9px; padding: 2px 6px; border-radius: 99px; text-transform: uppercase; font-weight: 900; letter-spacing: 0.05em; }
+        #scanNotice { transition: all 0.3s ease-in-out; transform: translateY(150%); }
+        #scanNotice.show { transform: translateY(0); }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-900 font-sans select-none">
+
+    <!-- MODAL AMBIGUÏTÉ -->
+    <div id="selectionModal" class="hidden fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4">
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"></div>
+        <div class="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-6">
+            <h3 class="text-xl font-black text-slate-800 mb-2 italic">Lequel avez-vous ?</h3>
+            <div id="modalChoices" class="space-y-3 max-h-[50vh] overflow-y-auto mb-6 pr-2"></div>
+            <button onclick="closeSelectionModal()" class="w-full py-4 text-slate-400 font-black uppercase text-[10px] tracking-widest">Annuler</button>
+        </div>
+    </div>
+
+    <!-- FLASH MESSAGE -->
+    <div id="scanNotice" class="fixed inset-x-0 bottom-24 mx-4 z-[100] p-6 rounded-[2rem] shadow-2xl flex flex-col items-center justify-center text-center border-4 hidden">
+        <div id="noticeIcon" class="text-4xl mb-2"></div>
+        <div id="noticeTitle" class="text-lg font-black uppercase tracking-tighter"></div>
+        <div id="noticeMsg" class="text-sm font-bold opacity-90"></div>
+    </div>
+
+    <!-- CHARGEMENT -->
+    <div id="loadingOverlay" class="hidden fixed inset-0 bg-white/95 z-[110] flex flex-col items-center justify-center p-8 text-center">
+        <div class="loader w-14 h-14 border-4 border-slate-200 rounded-full mb-6"></div>
+        <h2 class="text-xl font-black italic uppercase text-blue-600">Traitement...</h2>
+    </div>
+
+    <div class="max-w-md mx-auto pb-32">
+        <!-- HEADER -->
+        <header class="bg-white/90 backdrop-blur-md border-b sticky top-0 z-40 px-6 py-6 flex justify-between items-center shadow-sm">
+            <div>
+                <h1 class="text-2xl font-black tracking-tighter italic uppercase">
+                    <span class="text-slate-900">CHECK</span><span class="text-blue-600">COURSES</span>
+                </h1>
+                <p id="view-subtitle" class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Anti-Doublons v23</p>
+            </div>
+            <div id="main-counter" class="bg-blue-600 text-white text-sm font-black px-4 py-2 rounded-full shadow-lg border-2 border-white">0 / 0</div>
+        </header>
+
+        <main class="p-4">
+            <!-- VUE ACTIVE -->
+            <div id="view-active">
+                <!-- STEP 1 : IMPORT -->
+                <section id="step1" class="step-content">
+                    <div class="bg-white p-10 rounded-[3rem] shadow-sm border border-slate-200 text-center">
+                        <div class="text-6xl mb-6">📄</div>
+                        <h2 class="text-xl font-bold mb-2">Charger un bon</h2>
+                        <label class="block cursor-pointer bg-blue-600 text-white font-bold py-5 px-8 rounded-3xl shadow-xl active:scale-95 transition-transform text-lg mt-6">
+                            Choisir PDF ou Image
+                            <input type="file" id="fileInput" class="hidden" accept="image/*,.pdf" onchange="startProcess(this)">
+                        </label>
+                    </div>
+                </section>
+
+                <!-- STEP 2 : REVIEW -->
+                <section id="stepReview" class="step-content hidden space-y-4">
+                    <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
+                        <h2 class="font-bold text-lg mb-2 text-blue-600 italic uppercase">Correction de liste</h2>
+                        <textarea id="rawTextEditor" class="w-full h-80 p-5 border-2 border-slate-100 rounded-2xl text-sm font-medium outline-none focus:border-blue-500 bg-slate-50"></textarea>
+                        <button onclick="confirmList()" class="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl mt-4 uppercase">Valider et Scanner</button>
+                    </div>
+                </section>
+
+                <!-- STEP 3 : SCAN -->
+                <section id="step2" class="step-content hidden space-y-6">
+                    <div id="scannerBlock" class="bg-white p-4 rounded-[2.5rem] shadow-sm border border-slate-200">
+                        <div id="reader"></div>
+                        <div class="mt-4 flex flex-col items-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                            <span id="lastScannedName" class="text-sm font-bold text-blue-600 text-center">Prêt à scanner</span>
+                            <button id="btnToggleScanner" onclick="toggleScanner()" class="mt-4 bg-red-50 text-red-600 px-8 py-2.5 rounded-full text-[10px] font-black uppercase">Stop Caméra</button>
+                        </div>
+                    </div>
+                    <div id="itemsList" class="space-y-8"></div>
+                    <button onclick="archiveOrder()" class="w-full bg-green-500 text-white font-black py-6 rounded-[2.2rem] shadow-xl mt-6 uppercase tracking-widest text-sm">Archiver la livraison</button>
+                    <button onclick="resetApp()" class="w-full mt-4 text-slate-300 text-[10px] font-bold uppercase tracking-widest text-center">Tout annuler / Reset</button>
+                </section>
+            </div>
+
+            <!-- VUE HISTORIQUE -->
+            <div id="view-history" class="hidden space-y-6">
+                <div class="flex justify-between items-center px-2">
+                    <h2 class="text-2xl font-black text-slate-800 tracking-tighter italic uppercase">Historique</h2>
+                    <button onclick="clearHistory()" class="text-[10px] font-black text-red-500 bg-red-50 px-4 py-2 rounded-full uppercase">Vider tout</button>
+                </div>
+                <div id="history-container" class="space-y-4"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- TABS -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-200 flex justify-around safe-bottom z-50">
+        <button onclick="switchView('active')" id="tab-active" class="flex flex-col items-center py-4 px-10 tab-active">
+            <span class="text-2xl">📦</span><span class="text-[9px] font-black uppercase mt-1">Scanner</span>
+        </button>
+        <button onclick="switchView('history')" id="tab-history" class="flex flex-col items-center py-4 px-10 text-slate-300">
+            <span class="text-2xl">📜</span><span class="text-[9px] font-black uppercase mt-1">Archives</span>
+        </button>
+    </nav>
+
+    <script>
+        const pdfjs = window['pdfjs-dist/build/pdf'];
+        pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        let shoppingList = [];
+        let isScanning = false;
+        let lastCode = "";
+        let lastScanTime = 0;
+        let isProcessingScan = false;
+
+        const CATEGORIES = {
+            "FRAIS": { icon: "🥛", label: "Frais & Viandes", keywords: /lait|yaourt|beurre|fromage|steak|jambon|poulet|oeuf|traiteur|chiffonnade|beillevaire|creme/i },
+            "FRUITS": { icon: "🍎", label: "Fruits & Légumes", keywords: /pomme|banane|tomate|carotte|salade|oignon|fruit|legume|poire|melon|mangue|mais|pois|fraise|peche|courgette|haricot|chou/i },
+            "BOISSONS": { icon: "🥤", label: "Boissons", keywords: /eau|jus|soda|biere|vin|cola|the|ice tea|lipton|innocent|volvic|sirop/i },
+            "EPICERIE": { icon: "📦", label: "Épicerie", keywords: /pate|riz|gateau|chocolat|sucre|farine|conserve|muesli|biscuit|sable|granola|cereale|chocapic|bjorg|gerble/i },
+            "AUTRE": { icon: "✨", label: "Autres", keywords: /./i }
+        };
+
+        // --- NAVIGATION INITIALE ---
+        window.onload = function() {
+            const saved = localStorage.getItem('ch_active_session');
+            if (saved && JSON.parse(saved).length > 0) {
+                shoppingList = JSON.parse(saved);
+                showStep('step2');
+                renderList();
+            } else {
+                showStep('step1');
+            }
+        };
+
+        function showStep(stepId) {
+            document.querySelectorAll('.step-content').forEach(s => s.classList.add('hidden'));
+            document.getElementById(stepId).classList.remove('hidden');
+        }
+
+        function switchView(view) {
+            const vActive = document.getElementById('view-active');
+            const vHistory = document.getElementById('view-history');
+            const tActive = document.getElementById('tab-active');
+            const tHistory = document.getElementById('tab-history');
+
+            if (view === 'active') {
+                vActive.classList.remove('hidden');
+                vHistory.classList.add('hidden');
+                tActive.classList.add('tab-active'); tActive.classList.remove('text-slate-300');
+                tHistory.classList.remove('tab-active'); tHistory.classList.add('text-slate-300');
+            } else {
+                vActive.classList.add('hidden');
+                vHistory.classList.remove('hidden');
+                tActive.classList.remove('tab-active'); tActive.classList.add('text-slate-300');
+                tHistory.classList.add('tab-active'); tHistory.classList.remove('text-slate-300');
+                renderHistory();
+                if (isScanning) toggleScanner();
+            }
+        }
+
+        // --- TRAITEMENT FICHIER ---
+        async function startProcess(input) {
+            const file = input.files[0];
+            if (!file) return;
+            setLoading(true);
+            try {
+                let text = "";
+                if (file.type === "application/pdf") {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i);
+                        const textContent = await page.getTextContent();
+                        text += textContent.items.map(item => item.str).join(" ") + "\n";
+                    }
+                } else {
+                    const { data: { text: ocrText } } = await Tesseract.recognize(file, 'fra');
+                    text = ocrText;
+                }
+                displayReview(text);
+            } catch (err) { alert("Erreur : " + err.message); }
+            setLoading(false);
+        }
+
+        function displayReview(text) {
+            showStep('stepReview');
+            const cleanText = text.replace(/\n/g, ' ');
+            const regex = /(\d+[.,]\d+)\s+(\d+[.,]\d+%\s+)(.*?)(?=\s+\d+[.,]\d{2}€)/g;
+            let results = [];
+            let matches;
+            while ((matches = regex.exec(cleanText)) !== null) {
+                let qty = Math.floor(parseFloat(matches[1].replace(',', '.')));
+                let name = matches[3].trim().split(/\d+[.,]\d{2}/)[0].trim();
+                if (name.length > 3 && !name.match(/Désignation|Montant/i)) {
+                    for (let j = 0; j < qty; j++) results.push(name);
+                }
+            }
+            document.getElementById('rawTextEditor').value = results.length > 0 ? results.join('\n') : text;
+        }
+
+        function confirmList() {
+            const lines = document.getElementById('rawTextEditor').value.split('\n');
+            shoppingList = lines.filter(l => l.trim().length > 1).map((l, i) => {
+                let cat = "AUTRE";
+                for(let c in CATEGORIES) { if(l.match(CATEGORIES[c].keywords)) { cat = c; break; } }
+                return { id: Date.now() + i, name: l.trim(), category: cat, scanned: false };
+            });
+            showStep('step2');
+            localStorage.setItem('ch_active_session', JSON.stringify(shoppingList));
+            renderList();
+            setTimeout(toggleScanner, 500);
+        }
+
+        // --- SCANNER ---
+        function toggleScanner() {
+            if (isScanning) { Quagga.stop(); isScanning = false; document.getElementById('btnToggleScanner').innerText = "Start Caméra"; } 
+            else {
+                Quagga.init({
+                    inputStream: { name: "Live", type: "LiveStream", target: document.querySelector('#reader'), constraints: { facingMode: "environment", width: 1280, height: 720 } },
+                    locator: { patchSize: "medium", halfSample: true },
+                    decoder: { readers: ["ean_reader", "ean_8_reader", "upc_reader", "code_128_reader"] },
+                    locate: true
+                }, (err) => { if (err) return; Quagga.start(); isScanning = true; document.getElementById('btnToggleScanner').innerText = "Stop Caméra"; });
+            }
+        }
+
+        Quagga.onDetected((data) => {
+            const code = data.codeResult.code;
+            const now = Date.now();
+            if (!code || isProcessingScan || (code === lastCode && now - lastScanTime < 5000)) return;
+            isProcessingScan = true; lastCode = code; lastScanTime = now;
+            fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`)
+                .then(r => r.json()).then(data => {
+                    if(data.status === 1) {
+                        const name = data.product.product_name_fr || data.product.product_name || "Inconnu";
+                        document.getElementById('lastScannedName').innerText = name;
+                        smartMatch(name);
+                    } else { showFlash("Inconnu", code, "error"); isProcessingScan = false; }
+                }).catch(() => { isProcessingScan = false; });
+        });
+
+        function smartMatch(scannedName) {
+            const normalize = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[.,()]/g, "").split(" ").filter(w => w.length > 2);
+            const scannedWords = normalize(scannedName);
+            let matches = shoppingList.filter(item => {
+                if (item.scanned) return false;
+                const itemWords = normalize(item.name);
+                let score = 0;
+                scannedWords.forEach(sw => { if (itemWords.some(iw => iw.includes(sw) || sw.includes(iw))) score++; });
+                return score >= 2;
+            });
+
+            if (matches.length === 0) { showFlash("Non trouvé", scannedName, "warning"); isProcessingScan = false; }
+            else if (matches.length === 1) { validateItem(matches[0]); isProcessingScan = false; }
+            else { openSelectionModal(matches); }
+        }
+
+        function openSelectionModal(candidates) {
+            const container = document.getElementById('modalChoices');
+            container.innerHTML = '';
+            candidates.forEach(item => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left p-5 rounded-2xl border-2 border-slate-100 bg-slate-50 font-bold text-sm active:bg-blue-600 active:text-white";
+                btn.innerText = item.name;
+                btn.onclick = () => { validateItem(item); closeSelectionModal(); };
+                container.appendChild(btn);
+            });
+            document.getElementById('selectionModal').classList.remove('hidden');
+        }
+
+        function closeSelectionModal() { document.getElementById('selectionModal').classList.add('hidden'); isProcessingScan = false; }
+
+        function validateItem(item) {
+            item.scanned = true;
+            localStorage.setItem('ch_active_session', JSON.stringify(shoppingList));
+            renderList();
+            showFlash("Validé", item.name, "success");
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        }
+
+        function renderList() {
+            const container = document.getElementById('itemsList');
+            container.innerHTML = '';
+            const groups = shoppingList.reduce((acc, item) => { if (!acc[item.category]) acc[item.category] = []; acc[item.category].push(item); return acc; }, {});
+            Object.keys(CATEGORIES).forEach(catKey => {
+                if (!groups[catKey]) return;
+                const section = document.createElement('div');
+                section.innerHTML = `
+                    <div class="flex items-center gap-2 mb-3 px-2"><span>${CATEGORIES[catKey].icon}</span><span class="cat-badge bg-slate-200 text-slate-500">${CATEGORIES[catKey].label}</span></div>
+                    <div class="space-y-2 mb-6">
+                        ${groups[catKey].sort((a,b) => a.scanned - b.scanned).map(item => `
+                            <div class="p-5 rounded-2xl border-2 flex justify-between items-center bg-white ${item.scanned ? 'checked-item border-transparent' : 'border-slate-100 shadow-sm'}">
+                                <span class="text-sm font-bold flex-1 pr-4 ${item.scanned ? 'checked-text' : ''}">${item.name}</span>
+                                <button onclick="manualToggle(${item.id})" class="h-10 w-10 rounded-xl flex items-center justify-center ${item.scanned ? 'bg-green-100 text-green-600' : 'bg-slate-50 text-slate-300'}">${item.scanned ? '✅' : '⬜'}</button>
+                            </div>
+                        `).join('')}
+                    </div>`;
+                container.appendChild(section);
+            });
+            updateCounter();
+        }
+
+        function showFlash(title, msg, type) {
+            const notice = document.getElementById('scanNotice');
+            notice.classList.remove('hidden', 'bg-green-500', 'bg-orange-500', 'bg-red-500', 'text-white');
+            document.getElementById('noticeIcon').innerText = type === 'success' ? "✅" : (type === 'warning' ? "❓" : "❌");
+            document.getElementById('noticeTitle').innerText = title;
+            document.getElementById('noticeMsg').innerText = msg;
+            notice.classList.add(type === 'success' ? 'bg-green-500' : (type === 'warning' ? 'bg-orange-500' : 'bg-red-500'), 'text-white', 'show');
+            notice.classList.remove('hidden');
+            setTimeout(() => { notice.classList.remove('show'); setTimeout(() => notice.classList.add('hidden'), 300); }, 2500);
+        }
+
+        function manualToggle(id) {
+            const item = shoppingList.find(i => i.id === id);
+            item.scanned = !item.scanned;
+            localStorage.setItem('ch_active_session', JSON.stringify(shoppingList));
+            renderList();
+        }
+
+        function updateCounter() {
+            const count = shoppingList.filter(i => i.scanned).length;
+            const total = shoppingList.length;
+            const el = document.getElementById('main-counter');
+            el.innerText = `${count} / ${total}`;
+            el.className = (count === total && total > 0) ? "bg-green-500 text-white text-sm font-black px-4 py-2 rounded-full" : "bg-blue-600 text-white text-sm font-black px-4 py-2 rounded-full";
+        }
+
+        function archiveOrder() {
+            if (shoppingList.length === 0) return;
+            const history = JSON.parse(localStorage.getItem('ch_history_v23') || '[]');
+            history.unshift({ id: Date.now(), date: new Date().toLocaleString('fr-FR'), score: shoppingList.filter(i => i.scanned).length, total: shoppingList.length, items: shoppingList });
+            localStorage.setItem('ch_history_v23', JSON.stringify(history));
+            localStorage.removeItem('ch_active_session');
+            location.reload();
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('history-container');
+            const history = JSON.parse(localStorage.getItem('ch_history_v23') || '[]');
+            if (history.length === 0) { container.innerHTML = `<p class="text-center py-20 text-slate-300 font-bold uppercase text-xs">Aucune archive</p>`; return; }
+            container.innerHTML = history.map(o => `
+                <div class="bg-white rounded-[2rem] shadow-sm border border-slate-100 mb-4 p-6">
+                    <details class="group">
+                        <summary class="list-none cursor-pointer flex justify-between items-center">
+                            <div><p class="text-[9px] font-black text-blue-500 uppercase">${o.date}</p><h3 class="font-bold">Livraison</h3></div>
+                            <span class="font-black text-sm ${o.score === o.total ? 'text-green-500' : 'text-orange-500'}">${o.score}/${o.total}</span>
+                        </summary>
+                        <div class="mt-4 space-y-1.5 border-t pt-4">
+                            ${o.items.map(it => `<p class="text-[10px] ${it.scanned ? 'text-slate-400' : 'text-red-500 font-bold'}">${it.scanned ? '✅' : '❌'} ${it.name}</p>`).join('')}
+                            <button onclick="deleteOrder(${o.id})" class="w-full mt-4 py-2 bg-red-50 text-red-500 rounded-xl text-[10px] font-black uppercase">Supprimer</button>
+                        </div>
+                    </details>
+                </div>`).join('');
+        }
+
+        function deleteOrder(id) {
+            let history = JSON.parse(localStorage.getItem('ch_history_v23') || '[]');
+            history = history.filter(o => o.id !== id);
+            localStorage.setItem('ch_history_v23', JSON.stringify(history));
+            renderHistory();
+        }
+
+        function clearHistory() { if(confirm("Vider tout ?")) { localStorage.removeItem('ch_history_v23'); renderHistory(); } }
+        function setLoading(show) { document.getElementById('loadingOverlay').classList.toggle('hidden', !show); }
+        function resetApp() { if(confirm("Reset complet ?")) { localStorage.removeItem('ch_active_session'); location.reload(); } }
+        document.getElementById('rawTextEditor').addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') confirmList(); });
+    </script>
+</body>
+</html>
