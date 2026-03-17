@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CheckCourses - V24 Stable</title>
+    <title>CheckCourses - V25 Final</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛒</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
@@ -65,9 +65,9 @@
                 <section id="stepSync" class="step-content">
                     <div class="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-200 text-center">
                         <div class="text-5xl mb-4">🤝</div>
-                        <h2 class="text-xl font-bold mb-2">Synchronisation</h2>
+                        <h2 class="text-xl font-bold mb-2 tracking-tight italic">Synchronisation</h2>
                         <input type="text" id="syncCodeInput" class="w-full p-4 border-2 border-slate-100 rounded-2xl mb-4 text-center font-bold" placeholder="Code de partage">
-                        <button onclick="initSync()" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-xl uppercase">Rejoindre / Créer</button>
+                        <button onclick="initSync()" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-xl uppercase active:scale-95 transition">Rejoindre / Créer</button>
                         <button onclick="skipSync()" class="w-full mt-4 text-slate-400 text-[10px] font-bold uppercase">Mode Local (Sans synchro)</button>
                     </div>
                 </section>
@@ -99,11 +99,11 @@
                         <div id="reader"></div>
                         <div class="mt-4 flex flex-col items-center bg-slate-50 p-4 rounded-2xl">
                             <span id="lastScannedName" class="text-sm font-bold text-blue-600 text-center">Prêt à scanner</span>
-                            <button id="btnToggleScanner" onclick="toggleScanner()" class="mt-4 bg-red-50 text-red-600 px-8 py-2.5 rounded-full text-[10px] font-black uppercase">Caméra On/Off</button>
+                            <button id="btnToggleScanner" onclick="toggleScanner()" class="mt-4 bg-red-50 text-red-600 px-8 py-2.5 rounded-full text-[10px] font-black uppercase shadow-sm">Caméra On/Off</button>
                         </div>
                     </div>
                     <div id="itemsList" class="space-y-8"></div>
-                    <button onclick="archiveOrder()" class="w-full bg-green-500 text-white font-black py-6 rounded-[2.2rem] shadow-xl mt-6 uppercase tracking-widest text-sm">Archiver la livraison</button>
+                    <button onclick="archiveOrder()" class="w-full bg-green-500 text-white font-black py-6 rounded-[2.2rem] shadow-xl mt-6 uppercase text-sm">Archiver la livraison</button>
                     <button onclick="resetApp()" class="w-full mt-4 text-slate-300 text-[10px] font-bold uppercase text-center">Tout annuler / Reset</button>
                 </section>
             </div>
@@ -111,7 +111,7 @@
             <div id="view-history" class="hidden space-y-6">
                 <div class="flex justify-between items-center px-2">
                     <h2 class="text-2xl font-black text-slate-800 tracking-tighter italic uppercase">Historique</h2>
-                    <button onclick="clearHistory()" class="text-[10px] font-black text-red-500 bg-red-50 px-4 py-2 rounded-full uppercase">Vider tout</button>
+                    <button onclick="clearHistory()" class="text-[10px] font-black text-red-500 bg-red-50 px-4 py-2 rounded-full uppercase tracking-widest">Vider tout</button>
                 </div>
                 <div id="history-container" class="space-y-4"></div>
             </div>
@@ -120,19 +120,17 @@
 
     <nav class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-200 flex justify-around safe-bottom z-50">
         <button onclick="switchView('active')" id="tab-active" class="flex flex-col items-center py-4 px-10 tab-active transition-all">
-            <span class="text-2xl">📦</span><span class="text-[9px] font-black uppercase mt-1">Scanner</span>
+            <span class="text-2xl">📦</span><span class="text-[9px] font-black uppercase mt-1 tracking-widest">Scanner</span>
         </button>
         <button onclick="switchView('history')" id="tab-history" class="flex flex-col items-center py-4 px-10 text-slate-300 transition-all">
-            <span class="text-2xl">📜</span><span class="text-[9px] font-black uppercase mt-1">Archives</span>
+            <span class="text-2xl">📜</span><span class="text-[9px] font-black uppercase mt-1 tracking-widest">Archives</span>
         </button>
     </nav>
 
     <script>
         const SUPABASE_URL = "https://pefpsvulzgjhidjowcue.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBlZnBzdnVsemdqaGlkam93Y3VlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NjU2NTUsImV4cCI6MjA4OTM0MTY1NX0.QpToxUfjbB8MzY8svYLxAVEqerz-u52zpUTu3NobdoY";
-        
-        // Utilisation de sbClient pour éviter le conflit avec window.supabase
-        const sbClient = (SUPABASE_URL.includes("pefpsvulzgj")) ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+        const sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         const pdfjs = window['pdfjs-dist/build/pdf'];
         pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -157,15 +155,9 @@
             if (saved && JSON.parse(saved).length > 0) {
                 shoppingList = JSON.parse(saved);
                 currentSyncId = shoppingList[0]?.session_id || null;
-                if(currentSyncId) {
-                    document.getElementById('session-display').innerText = "☁️ Cloud : " + currentSyncId;
-                    subscribeToChanges();
-                }
-                showStep('step2');
-                renderList();
-            } else {
-                showStep('stepSync');
-            }
+                if(currentSyncId) { document.getElementById('session-display').innerText = "☁️ Cloud : " + currentSyncId; subscribeToChanges(); }
+                showStep('step2'); renderList();
+            } else { showStep('stepSync'); }
         };
 
         function showStep(id) {
@@ -178,7 +170,6 @@
             const history = document.getElementById('view-history');
             const tabA = document.getElementById('tab-active');
             const tabH = document.getElementById('tab-history');
-
             if (view === 'active') {
                 active.classList.remove('hidden'); history.classList.add('hidden');
                 tabA.classList.add('tab-active'); tabA.classList.remove('text-slate-300');
@@ -187,8 +178,7 @@
                 active.classList.add('hidden'); history.classList.remove('hidden');
                 tabA.classList.remove('tab-active'); tabA.classList.add('text-slate-300');
                 tabH.classList.add('tab-active'); tabH.classList.remove('text-slate-300');
-                renderHistory();
-                if (isScanning) toggleScanner();
+                renderHistory(); if (isScanning) toggleScanner();
             }
         }
 
@@ -197,22 +187,15 @@
             if (!code) return alert("Entrez un code");
             currentSyncId = code;
             document.getElementById('session-display').innerText = "☁️ Cloud : " + code;
-            
-            if (sbClient) {
-                const { data } = await sbClient.from('shopping_items').select('*').eq('session_id', currentSyncId);
-                if (data && data.length > 0) {
-                    shoppingList = data;
-                    showStep('step2');
-                    renderList();
-                    subscribeToChanges();
-                } else { showStep('step1'); }
+            const { data } = await sbClient.from('shopping_items').select('*').eq('session_id', currentSyncId);
+            if (data && data.length > 0) {
+                shoppingList = data; showStep('step2'); renderList(); subscribeToChanges();
             } else { showStep('step1'); }
         }
 
         function skipSync() { currentSyncId = null; document.getElementById('session-display').innerText = "🏠 Local"; showStep('step1'); }
 
         function subscribeToChanges() {
-            if (!sbClient) return;
             sbClient.channel('sync-list')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'shopping_items', filter: `session_id=eq.${currentSyncId}` }, payload => {
                 if (payload.eventType === 'UPDATE') {
@@ -223,9 +206,7 @@
         }
 
         async function startProcess(input) {
-            const file = input.files[0];
-            if (!file) return;
-            setLoading(true);
+            const file = input.files[0]; if (!file) return; setLoading(true);
             try {
                 let text = "";
                 if (file.type === "application/pdf") {
@@ -249,14 +230,11 @@
             showStep('stepReview');
             const cleanText = text.replace(/\n/g, ' ');
             const regex = /(\d+[.,]\d+)\s+(\d+[.,]\d+%\s+)(.*?)(?=\s+\d+[.,]\d{2}€)/g;
-            let results = [];
-            let matches;
+            let results = []; let matches;
             while ((matches = regex.exec(cleanText)) !== null) {
                 let qty = Math.floor(parseFloat(matches[1].replace(',', '.')));
                 let name = matches[3].trim().split(/\d+[.,]\d{2}/)[0].trim();
-                if (name.length > 3 && !name.match(/Désignation|Montant/i)) {
-                    for (let j = 0; j < qty; j++) results.push(name);
-                }
+                if (name.length > 3 && !name.match(/Désignation|Montant/i)) { for (let j = 0; j < qty; j++) results.push(name); }
             }
             document.getElementById('rawTextEditor').value = results.length > 0 ? results.join('\n') : text;
         }
@@ -268,19 +246,14 @@
                 for(let c in CATEGORIES) { if(l.match(CATEGORIES[c].keywords)) { cat = c; break; } }
                 return { id: Date.now() + i, session_id: currentSyncId, name: l.trim(), category: cat, scanned: false };
             });
-
-            if (currentSyncId && sbClient) {
+            if (currentSyncId) {
                 setLoading(true);
                 await sbClient.from('shopping_items').delete().eq('session_id', currentSyncId);
                 await sbClient.from('shopping_items').insert(shoppingList);
-                subscribeToChanges();
-                setLoading(false);
+                subscribeToChanges(); setLoading(false);
             }
-
-            showStep('step2');
-            localStorage.setItem('ch_active_session', JSON.stringify(shoppingList));
-            renderList();
-            setTimeout(toggleScanner, 500);
+            showStep('step2'); localStorage.setItem('ch_active_session', JSON.stringify(shoppingList));
+            renderList(); setTimeout(toggleScanner, 500);
         }
 
         function toggleScanner() {
@@ -296,16 +269,14 @@
         }
 
         Quagga.onDetected((data) => {
-            const code = data.codeResult.code;
-            const now = Date.now();
+            const code = data.codeResult.code; const now = Date.now();
             if (!code || isProcessingScan || (code === lastCode && now - lastScanTime < 5000)) return;
             isProcessingScan = true; lastCode = code; lastScanTime = now;
             fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`)
                 .then(r => r.json()).then(data => {
                     if(data.status === 1) {
                         const name = data.product.product_name_fr || data.product.product_name || "Inconnu";
-                        document.getElementById('lastScannedName').innerText = name;
-                        smartMatch(name);
+                        document.getElementById('lastScannedName').innerText = name; smartMatch(name);
                     } else { showFlash("Inconnu", code, "error"); isProcessingScan = false; }
                 }).catch(() => { isProcessingScan = false; });
         });
@@ -315,8 +286,7 @@
             const scannedWords = normalize(scannedName);
             let matches = shoppingList.filter(item => {
                 if (item.scanned) return false;
-                const itemWords = normalize(item.name);
-                let score = 0;
+                const itemWords = normalize(item.name); let score = 0;
                 scannedWords.forEach(sw => { if (itemWords.some(iw => iw.includes(sw) || sw.includes(iw))) score++; });
                 return score >= 2;
             });
@@ -326,13 +296,11 @@
         }
 
         function openSelectionModal(candidates) {
-            const container = document.getElementById('modalChoices');
-            container.innerHTML = '';
+            const container = document.getElementById('modalChoices'); container.innerHTML = '';
             candidates.forEach(item => {
                 const btn = document.createElement('button');
-                btn.className = "w-full text-left p-5 rounded-2xl border-2 border-slate-100 bg-slate-50 font-bold text-sm active:bg-blue-600 active:text-white";
-                btn.innerText = item.name;
-                btn.onclick = () => { validateItem(item); closeSelectionModal(); };
+                btn.className = "w-full text-left p-5 rounded-2xl border-2 border-slate-100 bg-slate-50 font-bold text-sm active:bg-blue-600 active:text-white transition-all";
+                btn.innerText = item.name; btn.onclick = () => { validateItem(item); closeSelectionModal(); };
                 container.appendChild(btn);
             });
             document.getElementById('selectionModal').classList.remove('hidden');
@@ -342,16 +310,14 @@
 
         async function validateItem(item) {
             item.scanned = true;
-            if (currentSyncId && sbClient) await sbClient.from('shopping_items').update({ scanned: true }).eq('id', item.id);
+            if (currentSyncId) await sbClient.from('shopping_items').update({ scanned: true }).eq('id', item.id);
             localStorage.setItem('ch_active_session', JSON.stringify(shoppingList));
-            renderList();
-            showFlash("Validé", item.name, "success");
+            renderList(); showFlash("Validé", item.name, "success");
             if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
         }
 
         function renderList() {
-            const container = document.getElementById('itemsList');
-            container.innerHTML = '';
+            const container = document.getElementById('itemsList'); container.innerHTML = '';
             const groups = shoppingList.reduce((acc, item) => { if (!acc[item.category]) acc[item.category] = []; acc[item.category].push(item); return acc; }, {});
             Object.keys(CATEGORIES).forEach(catKey => {
                 if (!groups[catKey]) return;
@@ -374,8 +340,7 @@
             const notice = document.getElementById('scanNotice');
             notice.classList.remove('hidden', 'bg-green-500', 'bg-orange-500', 'bg-red-500', 'text-white');
             document.getElementById('noticeIcon').innerText = type === 'success' ? "✅" : (type === 'warning' ? "❓" : "❌");
-            document.getElementById('noticeTitle').innerText = title;
-            document.getElementById('noticeMsg').innerText = msg;
+            document.getElementById('noticeTitle').innerText = title; document.getElementById('noticeMsg').innerText = msg;
             notice.classList.add(type === 'success' ? 'bg-green-500' : (type === 'warning' ? 'bg-orange-500' : 'bg-red-500'), 'text-white', 'show');
             notice.classList.remove('hidden');
             setTimeout(() => { notice.classList.remove('show'); setTimeout(() => notice.classList.add('hidden'), 300); }, 2500);
@@ -384,10 +349,8 @@
         function manualToggle(id) { const item = shoppingList.find(i => i.id === id); validateItem(item); }
 
         function updateCounter() {
-            const count = shoppingList.filter(i => i.scanned).length;
-            const total = shoppingList.length;
-            const el = document.getElementById('main-counter');
-            el.innerText = `${count} / ${total}`;
+            const count = shoppingList.filter(i => i.scanned).length; const total = shoppingList.length;
+            const el = document.getElementById('main-counter'); el.innerText = `${count} / ${total}`;
             el.className = (count === total && total > 0) ? "bg-green-500 text-white text-sm font-black px-4 py-2 rounded-full" : "bg-blue-600 text-white text-sm font-black px-4 py-2 rounded-full";
         }
 
@@ -396,9 +359,8 @@
             const history = JSON.parse(localStorage.getItem('ch_history_cloud') || '[]');
             history.unshift({ id: Date.now(), date: new Date().toLocaleString('fr-FR'), score: shoppingList.filter(i => i.scanned).length, total: shoppingList.length, items: shoppingList });
             localStorage.setItem('ch_history_cloud', JSON.stringify(history));
-            if (currentSyncId && sbClient) await sbClient.from('shopping_items').delete().eq('session_id', currentSyncId);
-            localStorage.removeItem('ch_active_session');
-            location.reload();
+            if (currentSyncId) await sbClient.from('shopping_items').delete().eq('session_id', currentSyncId);
+            localStorage.removeItem('ch_active_session'); location.reload();
         }
 
         function renderHistory() {
@@ -407,20 +369,30 @@
             if (history.length === 0) { container.innerHTML = `<p class="text-center py-20 text-slate-300 font-bold uppercase text-xs">Aucune archive</p>`; return; }
             container.innerHTML = history.map(o => `
                 <div class="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden mb-4 p-6">
-                    <details class="group">
-                        <summary class="list-none cursor-pointer flex justify-between items-center">
-                            <div><p class="text-[9px] font-black text-blue-500 uppercase">${o.date}</p><h3 class="font-bold">Livraison</h3></div>
-                            <span class="font-black text-sm ${o.score === o.total ? 'text-green-500' : 'text-orange-500'}">${o.score}/${o.total}</span>
-                        </summary>
-                        <div class="mt-4 space-y-1.5 border-t pt-4">
-                            ${o.items.map(it => `<p class="text-[10px] ${it.scanned ? 'text-slate-400' : 'text-red-500 font-bold'}">${it.scanned ? '✅' : '❌'} ${it.name}</p>`).join('')}
-                        </div>
-                    </details>
+                    <div class="flex justify-between items-center mb-4">
+                        <details class="flex-1 group">
+                            <summary class="list-none cursor-pointer flex justify-between items-center pr-4">
+                                <div><p class="text-[9px] font-black text-blue-500 uppercase">${o.date}</p><h3 class="font-bold">Livraison</h3></div>
+                                <span class="font-black text-sm ${o.score === o.total ? 'text-green-500' : 'text-orange-500'}">${o.score}/${o.total}</span>
+                            </summary>
+                            <div class="mt-4 space-y-1.5 border-t pt-4">
+                                ${o.items.map(it => `<p class="text-[10px] ${it.scanned ? 'text-slate-400' : 'text-red-500 font-bold'}">${it.scanned ? '✅' : '❌'} ${it.name}</p>`).join('')}
+                            </div>
+                        </details>
+                        <button onclick="deleteOrder(${o.id})" class="p-3 bg-red-50 text-red-500 rounded-2xl active:scale-90 transition-transform text-sm">🗑️</button>
+                    </div>
                 </div>`).join('');
         }
 
+        function deleteOrder(id) {
+            let history = JSON.parse(localStorage.getItem('ch_history_cloud') || '[]');
+            history = history.filter(o => o.id !== id);
+            localStorage.setItem('ch_history_cloud', JSON.stringify(history));
+            renderHistory();
+        }
+
+        function clearHistory() { if(confirm("Vider tout l'historique ?")) { localStorage.removeItem('ch_history_cloud'); renderHistory(); } }
         function setLoading(show) { document.getElementById('loadingOverlay').classList.toggle('hidden', !show); }
-        function resetApp() { if(confirm("Voulez-vous tout effacer ?")) { localStorage.removeItem('ch_active_session'); location.reload(); } }
         document.getElementById('rawTextEditor').addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') confirmList(); });
     </script>
 </body>
