@@ -3,60 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CheckCourses - V23</title>
+    <title>CheckCourses Cloud - Synchro Réelle</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛒</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
     <script src="https://unpkg.com/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <!-- SDK Supabase pour la synchro cloud -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <style>
-        .loader { border-top-color: #3b82f6; animation: spinner 1.5s linear infinite; }
+        .loader { border-top-color: #3b82f6; animation: spinner 1s linear infinite; }
         @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .checked-item { background-color: #f0fdf4 !important; border-color: #bbf7d0 !important; opacity: 0.6; }
+        .checked-item { background-color: #f0fdf4 !important; border-color: #bbf7d0 !important; opacity: 0.5; }
         .checked-text { text-decoration: line-through; color: #166534; }
         .tab-active { color: #2563eb !important; border-top: 4px solid #2563eb; }
         #reader { width: 100%; border-radius: 32px; overflow: hidden; background: #000; position: relative; }
         #reader video, #reader canvas { border-radius: 32px; width: 100%; }
-        .drawingBuffer { position: absolute; top: 0; left: 0; z-index: 10; }
-        .safe-bottom { padding-bottom: calc(1.5rem + env(safe-area-inset-bottom)); }
-        .cat-badge { font-size: 9px; padding: 2px 6px; border-radius: 99px; text-transform: uppercase; font-weight: 900; letter-spacing: 0.05em; }
+        .cat-badge { font-size: 9px; padding: 2px 6px; border-radius: 99px; text-transform: uppercase; font-weight: 900; }
         #scanNotice { transition: all 0.3s ease-in-out; transform: translateY(150%); }
         #scanNotice.show { transform: translateY(0); }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-900 font-sans select-none">
 
-    <!-- MODAL AMBIGUÏTÉ -->
+    <!-- MODAL AMBIGUÏTÉ / SÉLECTION -->
     <div id="selectionModal" class="hidden fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4">
         <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"></div>
         <div class="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-6">
             <h3 class="text-xl font-black text-slate-800 mb-2 italic">Lequel avez-vous ?</h3>
             <div id="modalChoices" class="space-y-3 max-h-[50vh] overflow-y-auto mb-6 pr-2"></div>
-            <button onclick="closeSelectionModal()" class="w-full py-4 text-slate-400 font-black uppercase text-[10px] tracking-widest">Annuler</button>
+            <button onclick="closeSelectionModal()" class="w-full py-4 text-slate-400 font-black uppercase text-[10px]">Annuler</button>
         </div>
     </div>
 
     <!-- FLASH MESSAGE -->
     <div id="scanNotice" class="fixed inset-x-0 bottom-24 mx-4 z-[100] p-6 rounded-[2rem] shadow-2xl flex flex-col items-center justify-center text-center border-4 hidden">
         <div id="noticeIcon" class="text-4xl mb-2"></div>
-        <div id="noticeTitle" class="text-lg font-black uppercase tracking-tighter"></div>
+        <div id="noticeTitle" class="text-lg font-black uppercase"></div>
         <div id="noticeMsg" class="text-sm font-bold opacity-90"></div>
     </div>
 
     <!-- CHARGEMENT -->
     <div id="loadingOverlay" class="hidden fixed inset-0 bg-white/95 z-[110] flex flex-col items-center justify-center p-8 text-center">
         <div class="loader w-14 h-14 border-4 border-slate-200 rounded-full mb-6"></div>
-        <h2 class="text-xl font-black italic uppercase text-blue-600">Traitement...</h2>
+        <h2 class="text-xl font-black italic uppercase text-blue-600">Mise à jour...</h2>
     </div>
 
     <div class="max-w-md mx-auto pb-32">
-        <!-- HEADER -->
         <header class="bg-white/90 backdrop-blur-md border-b sticky top-0 z-40 px-6 py-6 flex justify-between items-center shadow-sm">
             <div>
-                <h1 class="text-2xl font-black tracking-tighter italic uppercase">
-                    <span class="text-slate-900">CHECK</span><span class="text-blue-600">COURSES</span>
-                </h1>
-                <p id="view-subtitle" class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Anti-Doublons v23</p>
+                <h1 class="text-2xl font-black tracking-tighter italic uppercase"><span class="text-slate-900">CHECK</span><span class="text-blue-600">COURSES</span></h1>
+                <p id="session-display" class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Mode Solo</p>
             </div>
             <div id="main-counter" class="bg-blue-600 text-white text-sm font-black px-4 py-2 rounded-full shadow-lg border-2 border-white">0 / 0</div>
         </header>
@@ -64,8 +62,21 @@
         <main class="p-4">
             <!-- VUE ACTIVE -->
             <div id="view-active">
+                
+                <!-- STEP 0 : SYNC CODE -->
+                <section id="stepSync" class="step-content">
+                    <div class="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-200 text-center">
+                        <div class="text-5xl mb-4">🤝</div>
+                        <h2 class="text-xl font-bold mb-2">Partager cette session ?</h2>
+                        <p class="text-sm text-slate-500 mb-6">Entrez un nom de groupe (ex: maison) pour scanner à plusieurs.</p>
+                        <input type="text" id="syncCodeInput" class="w-full p-4 border-2 border-slate-100 rounded-2xl mb-4 text-center font-bold" placeholder="Code de partage">
+                        <button onclick="initSync()" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-xl uppercase">Rejoindre / Créer</button>
+                        <button onclick="skipSync()" class="w-full mt-4 text-slate-400 text-[10px] font-bold uppercase">Rester en mode local</button>
+                    </div>
+                </section>
+
                 <!-- STEP 1 : IMPORT -->
-                <section id="step1" class="step-content">
+                <section id="step1" class="step-content hidden">
                     <div class="bg-white p-10 rounded-[3rem] shadow-sm border border-slate-200 text-center">
                         <div class="text-6xl mb-6">📄</div>
                         <h2 class="text-xl font-bold mb-2">Charger un bon</h2>
@@ -79,9 +90,9 @@
                 <!-- STEP 2 : REVIEW -->
                 <section id="stepReview" class="step-content hidden space-y-4">
                     <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
-                        <h2 class="font-bold text-lg mb-2 text-blue-600 italic uppercase">Correction de liste</h2>
+                        <h2 class="font-bold text-lg mb-2 text-blue-600 italic uppercase">Extraits du document</h2>
                         <textarea id="rawTextEditor" class="w-full h-80 p-5 border-2 border-slate-100 rounded-2xl text-sm font-medium outline-none focus:border-blue-500 bg-slate-50"></textarea>
-                        <button onclick="confirmList()" class="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl mt-4 uppercase">Valider et Scanner</button>
+                        <button onclick="confirmList()" class="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl mt-4 uppercase">Valider et Partager</button>
                     </div>
                 </section>
 
@@ -89,14 +100,14 @@
                 <section id="step2" class="step-content hidden space-y-6">
                     <div id="scannerBlock" class="bg-white p-4 rounded-[2.5rem] shadow-sm border border-slate-200">
                         <div id="reader"></div>
-                        <div class="mt-4 flex flex-col items-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                        <div class="mt-4 flex flex-col items-center bg-slate-50 p-4 rounded-2xl">
                             <span id="lastScannedName" class="text-sm font-bold text-blue-600 text-center">Prêt à scanner</span>
-                            <button id="btnToggleScanner" onclick="toggleScanner()" class="mt-4 bg-red-50 text-red-600 px-8 py-2.5 rounded-full text-[10px] font-black uppercase">Stop Caméra</button>
+                            <button id="btnToggleScanner" onclick="toggleScanner()" class="mt-4 bg-red-50 text-red-600 px-8 py-2.5 rounded-full text-[10px] font-black uppercase">Caméra On/Off</button>
                         </div>
                     </div>
-                    <div id="itemsList" class="space-y-8"></div>
-                    <button onclick="archiveOrder()" class="w-full bg-green-500 text-white font-black py-6 rounded-[2.2rem] shadow-xl mt-6 uppercase tracking-widest text-sm">Archiver la livraison</button>
-                    <button onclick="resetApp()" class="w-full mt-4 text-slate-300 text-[10px] font-bold uppercase tracking-widest text-center">Tout annuler / Reset</button>
+                    <div id="itemsList" class="space-y-6"></div>
+                    <button onclick="archiveOrder()" class="w-full bg-green-500 text-white font-black py-6 rounded-[2.2rem] shadow-xl mt-6 uppercase text-sm">Archiver la livraison</button>
+                    <button onclick="resetApp()" class="w-full mt-4 text-slate-300 text-[10px] font-bold uppercase text-center">Tout annuler / Reset</button>
                 </section>
             </div>
 
@@ -112,16 +123,23 @@
     </div>
 
     <!-- TABS -->
-    <nav class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-200 flex justify-around safe-bottom z-50">
-        <button onclick="switchView('active')" id="tab-active" class="flex flex-col items-center py-4 px-10 tab-active">
-            <span class="text-2xl">📦</span><span class="text-[9px] font-black uppercase mt-1">Scanner</span>
+    <nav class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-200 flex justify-around p-2 z-50">
+        <button onclick="switchView('active')" id="tab-active" class="flex flex-col items-center py-2 px-8 tab-active">
+            <span class="text-xl">📦</span><span class="text-[9px] font-black uppercase mt-1">Scanner</span>
         </button>
-        <button onclick="switchView('history')" id="tab-history" class="flex flex-col items-center py-4 px-10 text-slate-300">
-            <span class="text-2xl">📜</span><span class="text-[9px] font-black uppercase mt-1">Archives</span>
+        <button onclick="switchView('history')" id="tab-history" class="flex flex-col items-center py-2 px-8 text-slate-300">
+            <span class="text-xl">📜</span><span class="text-[9px] font-black uppercase mt-1">Archives</span>
         </button>
     </nav>
 
     <script>
+        // --- CONFIGURATION SUPABASE ---
+        // REMPLACEZ CES DEUX VALEURS PAR LES VÔTRES :
+        const SUPABASE_URL = "https://pefpsvulzgjhidjowcue.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBlZnBzdnVsemdqaGlkam93Y3VlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NjU2NTUsImV4cCI6MjA4OTM0MTY1NX0.QpToxUfjbB8MzY8svYLxAVEqerz-u52zpUTu3NobdoY";
+        
+        const supabase = (SUPABASE_URL !== "https://VOTRE_PROJET.supabase.co") ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
         const pdfjs = window['pdfjs-dist/build/pdf'];
         pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -130,6 +148,7 @@
         let lastCode = "";
         let lastScanTime = 0;
         let isProcessingScan = false;
+        let currentSyncId = null;
 
         const CATEGORIES = {
             "FRAIS": { icon: "🥛", label: "Frais & Viandes", keywords: /lait|yaourt|beurre|fromage|steak|jambon|poulet|oeuf|traiteur|chiffonnade|beillevaire|creme/i },
@@ -139,17 +158,54 @@
             "AUTRE": { icon: "✨", label: "Autres", keywords: /./i }
         };
 
-        // --- NAVIGATION INITIALE ---
-        window.onload = function() {
-            const saved = localStorage.getItem('ch_active_session');
-            if (saved && JSON.parse(saved).length > 0) {
-                shoppingList = JSON.parse(saved);
-                showStep('step2');
-                renderList();
+        // --- SYNC LOGIC ---
+        async function initSync() {
+            const code = document.getElementById('syncCodeInput').value.trim().toLowerCase();
+            if (!code) return alert("Entrez un code");
+            currentSyncId = code;
+            document.getElementById('session-display').innerText = "☁️ Mode Cloud : " + code;
+            
+            if (supabase) {
+                // On vérifie s'il y a déjà une liste pour ce code
+                const { data, error } = await supabase.from('shopping_items').select('*').eq('session_id', currentSyncId);
+                if (data && data.length > 0) {
+                    shoppingList = data;
+                    showStep('step2');
+                    renderList();
+                    subscribeToChanges();
+                } else {
+                    showStep('step1');
+                }
             } else {
+                alert("Supabase non configuré. Le mode cloud ne fonctionnera pas.");
                 showStep('step1');
             }
-        };
+        }
+
+        function skipSync() {
+            currentSyncId = null;
+            document.getElementById('session-display').innerText = "🏠 Mode Local";
+            showStep('step1');
+        }
+
+        function subscribeToChanges() {
+            if (!supabase) return;
+            supabase.channel('sync-list')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'shopping_items', filter: `session_id=eq.${currentSyncId}` }, payload => {
+                // Dès que quelqu'un d'autre change un truc, on met à jour notre liste locale
+                if (payload.eventType === 'UPDATE') {
+                    const item = shoppingList.find(i => i.id === payload.new.id);
+                    if (item) {
+                        item.scanned = payload.new.scanned;
+                        renderList();
+                    }
+                } else if (payload.eventType === 'INSERT' || payload.eventType === 'DELETE') {
+                    // Pour simplifier, on recharge tout si la structure change
+                    initSync();
+                }
+            })
+            .subscribe();
+        }
 
         function showStep(stepId) {
             document.querySelectorAll('.step-content').forEach(s => s.classList.add('hidden'));
@@ -161,15 +217,12 @@
             const vHistory = document.getElementById('view-history');
             const tActive = document.getElementById('tab-active');
             const tHistory = document.getElementById('tab-history');
-
             if (view === 'active') {
-                vActive.classList.remove('hidden');
-                vHistory.classList.add('hidden');
+                vActive.classList.remove('hidden'); vHistory.classList.add('hidden');
                 tActive.classList.add('tab-active'); tActive.classList.remove('text-slate-300');
                 tHistory.classList.remove('tab-active'); tHistory.classList.add('text-slate-300');
             } else {
-                vActive.classList.add('hidden');
-                vHistory.classList.remove('hidden');
+                vActive.classList.add('hidden'); vHistory.classList.remove('hidden');
                 tActive.classList.remove('tab-active'); tActive.classList.add('text-slate-300');
                 tHistory.classList.add('tab-active'); tHistory.classList.remove('text-slate-300');
                 renderHistory();
@@ -177,7 +230,7 @@
             }
         }
 
-        // --- TRAITEMENT FICHIER ---
+        // --- PDF / OCR ---
         async function startProcess(input) {
             const file = input.files[0];
             if (!file) return;
@@ -197,7 +250,7 @@
                     text = ocrText;
                 }
                 displayReview(text);
-            } catch (err) { alert("Erreur : " + err.message); }
+            } catch (err) { alert(err.message); }
             setLoading(false);
         }
 
@@ -217,15 +270,30 @@
             document.getElementById('rawTextEditor').value = results.length > 0 ? results.join('\n') : text;
         }
 
-        function confirmList() {
-            const lines = document.getElementById('rawTextEditor').value.split('\n');
-            shoppingList = lines.filter(l => l.trim().length > 1).map((l, i) => {
+        async function confirmList() {
+            const lines = document.getElementById('rawTextEditor').value.split('\n').filter(l => l.trim().length > 1);
+            shoppingList = lines.map((l, i) => {
                 let cat = "AUTRE";
                 for(let c in CATEGORIES) { if(l.match(CATEGORIES[c].keywords)) { cat = c; break; } }
-                return { id: Date.now() + i, name: l.trim(), category: cat, scanned: false };
+                return { 
+                    id: Date.now() + i, 
+                    session_id: currentSyncId, 
+                    name: l.trim(), 
+                    category: cat, 
+                    scanned: false 
+                };
             });
+
+            if (currentSyncId && supabase) {
+                setLoading(true);
+                // On efface l'ancienne liste cloud pour ce code et on met la nouvelle
+                await supabase.from('shopping_items').delete().eq('session_id', currentSyncId);
+                await supabase.from('shopping_items').insert(shoppingList);
+                subscribeToChanges();
+                setLoading(false);
+            }
+
             showStep('step2');
-            localStorage.setItem('ch_active_session', JSON.stringify(shoppingList));
             renderList();
             setTimeout(toggleScanner, 500);
         }
@@ -268,7 +336,6 @@
                 scannedWords.forEach(sw => { if (itemWords.some(iw => iw.includes(sw) || sw.includes(iw))) score++; });
                 return score >= 2;
             });
-
             if (matches.length === 0) { showFlash("Non trouvé", scannedName, "warning"); isProcessingScan = false; }
             else if (matches.length === 1) { validateItem(matches[0]); isProcessingScan = false; }
             else { openSelectionModal(matches); }
@@ -289,9 +356,12 @@
 
         function closeSelectionModal() { document.getElementById('selectionModal').classList.add('hidden'); isProcessingScan = false; }
 
-        function validateItem(item) {
+        async function validateItem(item) {
             item.scanned = true;
-            localStorage.setItem('ch_active_session', JSON.stringify(shoppingList));
+            if (currentSyncId && supabase) {
+                // MISE À JOUR DANS LE CLOUD
+                await supabase.from('shopping_items').update({ scanned: true }).eq('id', item.id);
+            }
             renderList();
             showFlash("Validé", item.name, "success");
             if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
@@ -332,9 +402,7 @@
 
         function manualToggle(id) {
             const item = shoppingList.find(i => i.id === id);
-            item.scanned = !item.scanned;
-            localStorage.setItem('ch_active_session', JSON.stringify(shoppingList));
-            renderList();
+            validateItem(item); // Utilise la même logique sync
         }
 
         function updateCounter() {
@@ -345,21 +413,21 @@
             el.className = (count === total && total > 0) ? "bg-green-500 text-white text-sm font-black px-4 py-2 rounded-full" : "bg-blue-600 text-white text-sm font-black px-4 py-2 rounded-full";
         }
 
-        function archiveOrder() {
+        async function archiveOrder() {
             if (shoppingList.length === 0) return;
-            const history = JSON.parse(localStorage.getItem('ch_history_v23') || '[]');
+            const history = JSON.parse(localStorage.getItem('ch_history_cloud') || '[]');
             history.unshift({ id: Date.now(), date: new Date().toLocaleString('fr-FR'), score: shoppingList.filter(i => i.scanned).length, total: shoppingList.length, items: shoppingList });
-            localStorage.setItem('ch_history_v23', JSON.stringify(history));
-            localStorage.removeItem('ch_active_session');
+            localStorage.setItem('ch_history_cloud', JSON.stringify(history));
+            if (currentSyncId && supabase) await supabase.from('shopping_items').delete().eq('session_id', currentSyncId);
             location.reload();
         }
 
         function renderHistory() {
             const container = document.getElementById('history-container');
-            const history = JSON.parse(localStorage.getItem('ch_history_v23') || '[]');
+            const history = JSON.parse(localStorage.getItem('ch_history_cloud') || '[]');
             if (history.length === 0) { container.innerHTML = `<p class="text-center py-20 text-slate-300 font-bold uppercase text-xs">Aucune archive</p>`; return; }
             container.innerHTML = history.map(o => `
-                <div class="bg-white rounded-[2rem] shadow-sm border border-slate-100 mb-4 p-6">
+                <div class="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden mb-4 p-6">
                     <details class="group">
                         <summary class="list-none cursor-pointer flex justify-between items-center">
                             <div><p class="text-[9px] font-black text-blue-500 uppercase">${o.date}</p><h3 class="font-bold">Livraison</h3></div>
@@ -367,22 +435,13 @@
                         </summary>
                         <div class="mt-4 space-y-1.5 border-t pt-4">
                             ${o.items.map(it => `<p class="text-[10px] ${it.scanned ? 'text-slate-400' : 'text-red-500 font-bold'}">${it.scanned ? '✅' : '❌'} ${it.name}</p>`).join('')}
-                            <button onclick="deleteOrder(${o.id})" class="w-full mt-4 py-2 bg-red-50 text-red-500 rounded-xl text-[10px] font-black uppercase">Supprimer</button>
                         </div>
                     </details>
                 </div>`).join('');
         }
 
-        function deleteOrder(id) {
-            let history = JSON.parse(localStorage.getItem('ch_history_v23') || '[]');
-            history = history.filter(o => o.id !== id);
-            localStorage.setItem('ch_history_v23', JSON.stringify(history));
-            renderHistory();
-        }
-
-        function clearHistory() { if(confirm("Vider tout ?")) { localStorage.removeItem('ch_history_v23'); renderHistory(); } }
         function setLoading(show) { document.getElementById('loadingOverlay').classList.toggle('hidden', !show); }
-        function resetApp() { if(confirm("Reset complet ?")) { localStorage.removeItem('ch_active_session'); location.reload(); } }
+        function resetApp() { if(confirm("Voulez-vous tout effacer ?")) { location.reload(); } }
         document.getElementById('rawTextEditor').addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') confirmList(); });
     </script>
 </body>
