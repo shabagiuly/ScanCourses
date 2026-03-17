@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CheckCourses - V26 Final Sync</title>
+    <title>CheckCourses - V27 Full Sync</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛒</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
@@ -33,12 +33,12 @@
         <div class="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-6">
             <h3 class="text-xl font-black text-slate-800 mb-2 italic">Lequel avez-vous ?</h3>
             <div id="modalChoices" class="space-y-3 max-h-[50vh] overflow-y-auto mb-6 pr-2"></div>
-            <button onclick="closeSelectionModal()" class="w-full py-4 text-slate-400 font-black uppercase text-[10px]">Annuler</button>
+            <button onclick="closeSelectionModal()" class="w-full py-4 text-slate-400 font-black uppercase text-[10px] tracking-widest">Annuler</button>
         </div>
     </div>
 
     <!-- NOTIFICATION FLASH -->
-    <div id="scanNotice" class="fixed inset-x-0 bottom-24 mx-4 z-[100] p-6 rounded-[2rem] shadow-2xl flex flex-col items-center justify-center text-center border-4 hidden">
+    <div id="scanNotice" class="fixed inset-x-0 bottom-24 mx-4 p-6 rounded-[2rem] shadow-2xl flex flex-col items-center justify-center text-center border-4 hidden">
         <div id="noticeIcon" class="text-4xl mb-2"></div>
         <div id="noticeTitle" class="text-lg font-black uppercase tracking-tighter"></div>
         <div id="noticeMsg" class="text-sm font-bold opacity-90"></div>
@@ -47,7 +47,7 @@
     <!-- CHARGEMENT -->
     <div id="loadingOverlay" class="hidden fixed inset-0 bg-white/95 z-[110] flex flex-col items-center justify-center p-8 text-center">
         <div class="loader w-14 h-14 border-4 border-slate-200 rounded-full mb-6"></div>
-        <h2 class="text-xl font-black italic uppercase text-blue-600">Mise à jour...</h2>
+        <h2 class="text-xl font-black italic uppercase text-blue-600">Traitement...</h2>
     </div>
 
     <div class="max-w-md mx-auto pb-32">
@@ -61,18 +61,20 @@
 
         <main class="p-4">
             <div id="view-active">
+                <!-- STEP SYNC -->
                 <section id="stepSync" class="step-content">
                     <div class="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-200 text-center">
                         <div class="text-5xl mb-4">🤝</div>
-                        <h2 class="text-xl font-bold mb-2">Synchronisation</h2>
+                        <h2 class="text-xl font-bold mb-2 tracking-tight">Synchronisation</h2>
                         <input type="text" id="syncCodeInput" class="w-full p-4 border-2 border-slate-100 rounded-2xl mb-4 text-center font-bold" placeholder="Code de partage">
                         <button onclick="initSync()" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-xl uppercase">Rejoindre / Créer</button>
                         <button onclick="skipSync()" class="w-full mt-4 text-slate-400 text-[10px] font-bold uppercase">Mode Local</button>
                     </div>
                 </section>
 
-                <section id="step1" class="step-content hidden">
-                    <div class="bg-white p-10 rounded-[3rem] shadow-sm border border-slate-200 text-center">
+                <!-- STEP 1 : IMPORT -->
+                <section id="step1" class="step-content hidden text-center">
+                    <div class="bg-white p-10 rounded-[3rem] shadow-sm border border-slate-200">
                         <div class="text-6xl mb-6">📄</div>
                         <h2 class="text-xl font-bold mb-2">Charger un bon</h2>
                         <label class="block cursor-pointer bg-blue-600 text-white font-bold py-5 px-8 rounded-3xl shadow-xl active:scale-95 transition text-lg mt-6">
@@ -82,16 +84,18 @@
                     </div>
                 </section>
 
+                <!-- STEP 2 : REVIEW -->
                 <section id="stepReview" class="step-content hidden space-y-4">
                     <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
-                        <h2 class="font-bold text-lg mb-2 text-blue-600 italic uppercase">Correction</h2>
+                        <h2 class="font-bold text-lg mb-2 text-blue-600 italic uppercase">Articles extraits</h2>
                         <textarea id="rawTextEditor" class="w-full h-80 p-5 border-2 border-slate-100 rounded-2xl text-sm font-medium outline-none focus:border-blue-500 bg-slate-50"></textarea>
                         <button onclick="confirmList()" class="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl mt-4 uppercase">Valider et Partager</button>
                     </div>
                 </section>
 
+                <!-- STEP 3 : SCAN -->
                 <section id="step2" class="step-content hidden space-y-6">
-                    <div id="scannerBlock" class="bg-white p-4 rounded-[2.5rem] shadow-sm border border-slate-100">
+                    <div id="scannerBlock" class="bg-white p-4 rounded-[2.5rem] shadow-sm border border-slate-200">
                         <div id="reader"></div>
                         <div class="mt-4 flex flex-col items-center bg-slate-50 p-4 rounded-2xl">
                             <span id="lastScannedName" class="text-sm font-bold text-blue-600 text-center">Prêt à scanner</span>
@@ -106,8 +110,8 @@
 
             <div id="view-history" class="hidden space-y-6">
                 <div class="flex justify-between items-center px-2">
-                    <h2 class="text-2xl font-black text-slate-800 tracking-tighter">HISTORIQUE</h2>
-                    <button onclick="clearHistory()" class="text-[10px] font-black text-red-500 bg-red-50 px-4 py-2 rounded-full uppercase tracking-widest">Vider tout</button>
+                    <h2 class="text-2xl font-black text-slate-800 tracking-tighter uppercase italic">Historique</h2>
+                    <button onclick="clearHistory()" class="text-[10px] font-black text-red-500 bg-red-50 px-4 py-2 rounded-full uppercase">Vider tout</button>
                 </div>
                 <div id="history-container" class="space-y-4"></div>
             </div>
@@ -148,10 +152,13 @@
 
         window.onload = function() {
             const saved = localStorage.getItem('ch_active_session');
-            if (saved) {
+            if (saved && JSON.parse(saved).length > 0) {
                 shoppingList = JSON.parse(saved);
                 currentSyncId = shoppingList[0]?.session_id || null;
-                if(currentSyncId) { document.getElementById('session-display').innerText = "☁️ Cloud : " + currentSyncId; subscribeToChanges(); }
+                if(currentSyncId) { 
+                    document.getElementById('session-display').innerText = "☁️ Cloud : " + currentSyncId; 
+                    subscribeToChanges(); 
+                }
                 showStep('step2'); renderList();
             } else { showStep('stepSync'); }
         };
@@ -177,15 +184,22 @@
 
         function subscribeToChanges() {
             if (!sbClient) return;
+            // On écoute tout : UPDATE, DELETE, etc.
             sbClient.channel('sync-list')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'shopping_items', filter: `session_id=eq.${currentSyncId}` }, payload => {
-                if (payload.eventType === 'UPDATE') {
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'shopping_items' }, async (payload) => {
+                // Si une mise à jour arrive sur notre session
+                if (payload.eventType === 'UPDATE' && payload.new.session_id === currentSyncId) {
                     const item = shoppingList.find(i => i.id === payload.new.id);
                     if (item) { item.scanned = payload.new.scanned; renderList(); }
-                } else if (payload.eventType === 'DELETE') {
-                    // Si la session est supprimée (archive ou reset par un autre), on reboot
-                    localStorage.removeItem('ch_active_session');
-                    location.reload();
+                } 
+                // Si des données sont supprimées (Signal d'archive ou reset)
+                if (payload.eventType === 'DELETE') {
+                    // On vérifie si notre session existe toujours en base
+                    const { count } = await sbClient.from('shopping_items').select('*', { count: 'exact', head: true }).eq('session_id', currentSyncId);
+                    if (count === 0) {
+                        localStorage.removeItem('ch_active_session');
+                        location.reload(); // Tout le monde revient à l'accueil
+                    }
                 }
             }).subscribe();
         }
@@ -226,12 +240,13 @@
             shoppingList = lines.map((l, i) => {
                 let cat = "AUTRE";
                 for(let c in CATEGORIES) { if(l.match(CATEGORIES[c].keywords)) { cat = c; break; } }
-                return { id: Date.now() + i, session_id: currentSyncId, name: l.trim(), category: cat, scanned: false };
+                return { session_id: currentSyncId, name: l.trim(), category: cat, scanned: false };
             });
             if (currentSyncId) {
                 setLoading(true);
                 await sbClient.from('shopping_items').delete().eq('session_id', currentSyncId);
-                await sbClient.from('shopping_items').insert(shoppingList);
+                const { data, error } = await sbClient.from('shopping_items').insert(shoppingList).select();
+                if (data) shoppingList = data; // Récupérer les IDs générés par Supabase
                 subscribeToChanges(); setLoading(false);
             }
             showStep('step2'); localStorage.setItem('ch_active_session', JSON.stringify(shoppingList));
@@ -338,16 +353,17 @@
 
         async function archiveOrder() {
             if (shoppingList.length === 0) return;
-            const history = JSON.parse(localStorage.getItem('ch_history_cloud') || '[]');
+            const history = JSON.parse(localStorage.getItem('ch_history_cloud_v27') || '[]');
             history.unshift({ id: Date.now(), date: new Date().toLocaleString('fr-FR'), score: shoppingList.filter(i => i.scanned).length, total: shoppingList.length, items: shoppingList });
-            localStorage.setItem('ch_history_cloud', JSON.stringify(history));
+            localStorage.setItem('ch_history_cloud_v27', JSON.stringify(history));
             if (currentSyncId) await sbClient.from('shopping_items').delete().eq('session_id', currentSyncId);
-            localStorage.removeItem('ch_active_session'); location.reload();
+            localStorage.removeItem('ch_active_session'); 
+            location.reload();
         }
 
         function renderHistory() {
             const container = document.getElementById('history-container');
-            const history = JSON.parse(localStorage.getItem('ch_history_cloud') || '[]');
+            const history = JSON.parse(localStorage.getItem('ch_history_cloud_v27') || '[]');
             if (history.length === 0) { container.innerHTML = `<p class="text-center py-20 text-slate-300 font-bold uppercase text-xs">Aucune archive</p>`; return; }
             container.innerHTML = history.map(o => `
                 <div class="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden mb-4 p-6">
@@ -361,22 +377,22 @@
                                 ${o.items.map(it => `<p class="text-[10px] ${it.scanned ? 'text-slate-400' : 'text-red-500 font-bold'}">${it.scanned ? '✅' : '❌'} ${it.name}</p>`).join('')}
                             </div>
                         </details>
-                        <button onclick="deleteOrder(${o.id})" class="p-3 bg-red-50 text-red-500 rounded-2xl active:scale-90 transition-transform text-sm">🗑️</button>
+                        <button onclick="deleteOrder(${o.id})" class="p-3 bg-red-50 text-red-500 rounded-2xl text-sm">🗑️</button>
                     </div>
                 </div>`).join('');
         }
 
         function deleteOrder(id) {
-            let history = JSON.parse(localStorage.getItem('ch_history_cloud') || '[]');
+            let history = JSON.parse(localStorage.getItem('ch_history_cloud_v27') || '[]');
             history = history.filter(o => o.id !== id);
-            localStorage.setItem('ch_history_cloud', JSON.stringify(history));
+            localStorage.setItem('ch_history_cloud_v27', JSON.stringify(history));
             renderHistory();
         }
 
-        function clearHistory() { if(confirm("Vider tout ?")) { localStorage.removeItem('ch_history_cloud'); renderHistory(); } }
+        function clearHistory() { if(confirm("Vider tout ?")) { localStorage.removeItem('ch_history_cloud_v27'); renderHistory(); } }
 
         async function resetApp() {
-            if(confirm("Tout effacer ? (Synchronisé sur tous les appareils)")) {
+            if(confirm("Tout effacer ? (Synchronisé)")) {
                 if (currentSyncId) {
                     setLoading(true);
                     await sbClient.from('shopping_items').delete().eq('session_id', currentSyncId);
