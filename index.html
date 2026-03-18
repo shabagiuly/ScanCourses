@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CheckCourses - V27 Full Sync</title>
+    <title>CheckCourses - V28 Stable</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛒</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
@@ -33,12 +33,12 @@
         <div class="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-6">
             <h3 class="text-xl font-black text-slate-800 mb-2 italic">Lequel avez-vous ?</h3>
             <div id="modalChoices" class="space-y-3 max-h-[50vh] overflow-y-auto mb-6 pr-2"></div>
-            <button onclick="closeSelectionModal()" class="w-full py-4 text-slate-400 font-black uppercase text-[10px] tracking-widest">Annuler</button>
+            <button onclick="closeSelectionModal()" class="w-full py-4 text-slate-400 font-black uppercase text-[10px]">Annuler</button>
         </div>
     </div>
 
-    <!-- NOTIFICATION FLASH -->
-    <div id="scanNotice" class="fixed inset-x-0 bottom-24 mx-4 p-6 rounded-[2rem] shadow-2xl flex flex-col items-center justify-center text-center border-4 hidden">
+    <!-- FLASH MESSAGE -->
+    <div id="scanNotice" class="fixed inset-x-0 bottom-24 mx-4 z-[100] p-6 rounded-[2rem] shadow-2xl flex flex-col items-center justify-center text-center border-4 hidden">
         <div id="noticeIcon" class="text-4xl mb-2"></div>
         <div id="noticeTitle" class="text-lg font-black uppercase tracking-tighter"></div>
         <div id="noticeMsg" class="text-sm font-bold opacity-90"></div>
@@ -47,14 +47,14 @@
     <!-- CHARGEMENT -->
     <div id="loadingOverlay" class="hidden fixed inset-0 bg-white/95 z-[110] flex flex-col items-center justify-center p-8 text-center">
         <div class="loader w-14 h-14 border-4 border-slate-200 rounded-full mb-6"></div>
-        <h2 class="text-xl font-black italic uppercase text-blue-600">Traitement...</h2>
+        <h2 class="text-xl font-black italic uppercase text-blue-600">Mise à jour...</h2>
     </div>
 
     <div class="max-w-md mx-auto pb-32">
         <header class="bg-white/90 backdrop-blur-md border-b sticky top-0 z-40 px-6 py-6 flex justify-between items-center shadow-sm">
             <div>
                 <h1 class="text-2xl font-black tracking-tighter italic uppercase"><span class="text-slate-900">CHECK</span><span class="text-blue-600">COURSES</span></h1>
-                <p id="session-display" class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Mode Solo</p>
+                <p id="session-display" class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Initialisation...</p>
             </div>
             <div id="main-counter" class="bg-blue-600 text-white text-sm font-black px-4 py-2 rounded-full shadow-lg border-2 border-white">0 / 0</div>
         </header>
@@ -62,13 +62,13 @@
         <main class="p-4">
             <div id="view-active">
                 <!-- STEP SYNC -->
-                <section id="stepSync" class="step-content">
+                <section id="stepSync" class="step-content hidden">
                     <div class="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-200 text-center">
                         <div class="text-5xl mb-4">🤝</div>
-                        <h2 class="text-xl font-bold mb-2 tracking-tight">Synchronisation</h2>
+                        <h2 class="text-xl font-bold mb-2 tracking-tight italic">Synchronisation</h2>
                         <input type="text" id="syncCodeInput" class="w-full p-4 border-2 border-slate-100 rounded-2xl mb-4 text-center font-bold" placeholder="Code de partage">
-                        <button onclick="initSync()" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-xl uppercase">Rejoindre / Créer</button>
-                        <button onclick="skipSync()" class="w-full mt-4 text-slate-400 text-[10px] font-bold uppercase">Mode Local</button>
+                        <button onclick="initSync()" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-xl uppercase active:scale-95 transition">Rejoindre / Créer</button>
+                        <button onclick="skipSync()" class="w-full mt-4 text-slate-400 text-[10px] font-bold uppercase">Mode Local (Sans synchro)</button>
                     </div>
                 </section>
 
@@ -99,7 +99,7 @@
                         <div id="reader"></div>
                         <div class="mt-4 flex flex-col items-center bg-slate-50 p-4 rounded-2xl">
                             <span id="lastScannedName" class="text-sm font-bold text-blue-600 text-center">Prêt à scanner</span>
-                            <button id="btnToggleScanner" onclick="toggleScanner()" class="mt-4 bg-red-50 text-red-600 px-8 py-2.5 rounded-full text-[10px] font-black uppercase">Caméra On/Off</button>
+                            <button id="btnToggleScanner" onclick="toggleScanner()" class="mt-4 bg-red-50 text-red-600 px-8 py-2.5 rounded-full text-[10px] font-black uppercase shadow-sm">Caméra On/Off</button>
                         </div>
                     </div>
                     <div id="itemsList" class="space-y-8"></div>
@@ -111,7 +111,7 @@
             <div id="view-history" class="hidden space-y-6">
                 <div class="flex justify-between items-center px-2">
                     <h2 class="text-2xl font-black text-slate-800 tracking-tighter uppercase italic">Historique</h2>
-                    <button onclick="clearHistory()" class="text-[10px] font-black text-red-500 bg-red-50 px-4 py-2 rounded-full uppercase">Vider tout</button>
+                    <button onclick="clearHistory()" class="text-[10px] font-black text-red-500 bg-red-50 px-4 py-2 rounded-full uppercase tracking-widest">Vider tout</button>
                 </div>
                 <div id="history-container" class="space-y-4"></div>
             </div>
@@ -120,10 +120,10 @@
 
     <nav class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-200 flex justify-around safe-bottom z-50">
         <button onclick="switchView('active')" id="tab-active" class="flex flex-col items-center py-4 px-10 tab-active transition-all">
-            <span class="text-2xl">📦</span><span class="text-[9px] font-black uppercase mt-1">Scanner</span>
+            <span class="text-2xl">📦</span><span class="text-[9px] font-black uppercase mt-1 tracking-widest">Scanner</span>
         </button>
         <button onclick="switchView('history')" id="tab-history" class="flex flex-col items-center py-4 px-10 text-slate-300 transition-all">
-            <span class="text-2xl">📜</span><span class="text-[9px] font-black uppercase mt-1">Archives</span>
+            <span class="text-2xl">📜</span><span class="text-[9px] font-black uppercase mt-1 tracking-widest">Archives</span>
         </button>
     </nav>
 
@@ -158,9 +158,14 @@
                 if(currentSyncId) { 
                     document.getElementById('session-display').innerText = "☁️ Cloud : " + currentSyncId; 
                     subscribeToChanges(); 
+                } else {
+                    document.getElementById('session-display').innerText = "🏠 Local";
                 }
                 showStep('step2'); renderList();
-            } else { showStep('stepSync'); }
+            } else { 
+                document.getElementById('session-display').innerText = "Mode Solo";
+                showStep('stepSync'); 
+            }
         };
 
         function showStep(id) { document.querySelectorAll('.step-content').forEach(s => s.classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); }
@@ -183,23 +188,16 @@
         function skipSync() { currentSyncId = null; document.getElementById('session-display').innerText = "🏠 Local"; showStep('step1'); }
 
         function subscribeToChanges() {
-            if (!sbClient) return;
-            // On écoute tout : UPDATE, DELETE, etc.
+            if (!sbClient || !currentSyncId) return;
             sbClient.channel('sync-list')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'shopping_items' }, async (payload) => {
-                // Si une mise à jour arrive sur notre session
                 if (payload.eventType === 'UPDATE' && payload.new.session_id === currentSyncId) {
                     const item = shoppingList.find(i => i.id === payload.new.id);
                     if (item) { item.scanned = payload.new.scanned; renderList(); }
                 } 
-                // Si des données sont supprimées (Signal d'archive ou reset)
                 if (payload.eventType === 'DELETE') {
-                    // On vérifie si notre session existe toujours en base
                     const { count } = await sbClient.from('shopping_items').select('*', { count: 'exact', head: true }).eq('session_id', currentSyncId);
-                    if (count === 0) {
-                        localStorage.removeItem('ch_active_session');
-                        location.reload(); // Tout le monde revient à l'accueil
-                    }
+                    if (count === 0) { localStorage.removeItem('ch_active_session'); location.reload(); }
                 }
             }).subscribe();
         }
@@ -240,13 +238,13 @@
             shoppingList = lines.map((l, i) => {
                 let cat = "AUTRE";
                 for(let c in CATEGORIES) { if(l.match(CATEGORIES[c].keywords)) { cat = c; break; } }
-                return { session_id: currentSyncId, name: l.trim(), category: cat, scanned: false };
+                return { id: Date.now() + i, session_id: currentSyncId, name: l.trim(), category: cat, scanned: false };
             });
             if (currentSyncId) {
                 setLoading(true);
                 await sbClient.from('shopping_items').delete().eq('session_id', currentSyncId);
-                const { data, error } = await sbClient.from('shopping_items').insert(shoppingList).select();
-                if (data) shoppingList = data; // Récupérer les IDs générés par Supabase
+                const { data } = await sbClient.from('shopping_items').insert(shoppingList).select();
+                if (data) shoppingList = data;
                 subscribeToChanges(); setLoading(false);
             }
             showStep('step2'); localStorage.setItem('ch_active_session', JSON.stringify(shoppingList));
@@ -288,7 +286,7 @@
                 return score >= 2;
             });
             if (matches.length === 0) { showFlash("Non trouvé", scannedName, "warning"); isProcessingScan = false; }
-            else if (matches.length === 1) { validateItem(matches[0]); isProcessingScan = false; }
+            else if (matches.length === 1) { toggleItemState(matches[0]); isProcessingScan = false; }
             else { openSelectionModal(matches); }
         }
 
@@ -297,7 +295,7 @@
             candidates.forEach(item => {
                 const btn = document.createElement('button');
                 btn.className = "w-full text-left p-5 rounded-2xl border-2 border-slate-100 bg-slate-50 font-bold text-sm active:bg-blue-600 active:text-white";
-                btn.innerText = item.name; btn.onclick = () => { validateItem(item); closeSelectionModal(); };
+                btn.innerText = item.name; btn.onclick = () => { toggleItemState(item); closeSelectionModal(); };
                 container.appendChild(btn);
             });
             document.getElementById('selectionModal').classList.remove('hidden');
@@ -305,12 +303,24 @@
 
         function closeSelectionModal() { document.getElementById('selectionModal').classList.add('hidden'); isProcessingScan = false; }
 
-        async function validateItem(item) {
-            item.scanned = true;
-            if (currentSyncId) await sbClient.from('shopping_items').update({ scanned: true }).eq('id', item.id);
+        // --- FONCTION DE MISE À JOUR UNIQUE (CLOUD + LOCAL) ---
+        async function toggleItemState(item) {
+            item.scanned = !item.scanned;
+            
+            // 1. Sync Cloud si actif
+            if (currentSyncId && sbClient) {
+                await sbClient.from('shopping_items').update({ scanned: item.scanned }).eq('id', item.id);
+            }
+            
+            // 2. Sync Local permanent
             localStorage.setItem('ch_active_session', JSON.stringify(shoppingList));
-            renderList(); showFlash("Validé", item.name, "success");
-            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+            
+            // 3. UI
+            renderList();
+            if (item.scanned) {
+                showFlash("Validé", item.name, "success");
+                if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+            }
         }
 
         function renderList() {
@@ -343,7 +353,7 @@
             setTimeout(() => { notice.classList.remove('show'); setTimeout(() => notice.classList.add('hidden'), 300); }, 2500);
         }
 
-        function manualToggle(id) { const item = shoppingList.find(i => i.id === id); validateItem(item); }
+        function manualToggle(id) { const item = shoppingList.find(i => i.id === id); toggleItemState(item); }
 
         function updateCounter() {
             const count = shoppingList.filter(i => i.scanned).length; const total = shoppingList.length;
@@ -353,17 +363,16 @@
 
         async function archiveOrder() {
             if (shoppingList.length === 0) return;
-            const history = JSON.parse(localStorage.getItem('ch_history_cloud_v27') || '[]');
+            const history = JSON.parse(localStorage.getItem('ch_history_cloud_v28') || '[]');
             history.unshift({ id: Date.now(), date: new Date().toLocaleString('fr-FR'), score: shoppingList.filter(i => i.scanned).length, total: shoppingList.length, items: shoppingList });
-            localStorage.setItem('ch_history_cloud_v27', JSON.stringify(history));
+            localStorage.setItem('ch_history_cloud_v28', JSON.stringify(history));
             if (currentSyncId) await sbClient.from('shopping_items').delete().eq('session_id', currentSyncId);
-            localStorage.removeItem('ch_active_session'); 
-            location.reload();
+            localStorage.removeItem('ch_active_session'); location.reload();
         }
 
         function renderHistory() {
             const container = document.getElementById('history-container');
-            const history = JSON.parse(localStorage.getItem('ch_history_cloud_v27') || '[]');
+            const history = JSON.parse(localStorage.getItem('ch_history_cloud_v28') || '[]');
             if (history.length === 0) { container.innerHTML = `<p class="text-center py-20 text-slate-300 font-bold uppercase text-xs">Aucune archive</p>`; return; }
             container.innerHTML = history.map(o => `
                 <div class="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden mb-4 p-6">
@@ -383,20 +392,17 @@
         }
 
         function deleteOrder(id) {
-            let history = JSON.parse(localStorage.getItem('ch_history_cloud_v27') || '[]');
+            let history = JSON.parse(localStorage.getItem('ch_history_cloud_v28') || '[]');
             history = history.filter(o => o.id !== id);
-            localStorage.setItem('ch_history_cloud_v27', JSON.stringify(history));
+            localStorage.setItem('ch_history_cloud_v28', JSON.stringify(history));
             renderHistory();
         }
 
-        function clearHistory() { if(confirm("Vider tout ?")) { localStorage.removeItem('ch_history_cloud_v27'); renderHistory(); } }
+        function clearHistory() { if(confirm("Vider tout ?")) { localStorage.removeItem('ch_history_cloud_v28'); renderHistory(); } }
 
         async function resetApp() {
             if(confirm("Tout effacer ? (Synchronisé)")) {
-                if (currentSyncId) {
-                    setLoading(true);
-                    await sbClient.from('shopping_items').delete().eq('session_id', currentSyncId);
-                }
+                if (currentSyncId) { await sbClient.from('shopping_items').delete().eq('session_id', currentSyncId); }
                 localStorage.removeItem('ch_active_session');
                 location.reload();
             }
