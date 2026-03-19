@@ -3,8 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CheckCourses - V28 Stable</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛒</text></svg>">
+    <title>CheckCourses</title>
+
+    <!-- FAVICON (Onglet) -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🛒%3C/text%3E%3C/svg%3E">
+
+    <!-- ICÔNE IOS (Écran d'accueil) - Design SC Stylisé -->
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%232563eb'/%3E%3Ctext x='90' y='122' font-family='Arial, sans-serif' font-weight='900' font-size='85' fill='white' text-anchor='middle'%3ESC%3C/text%3E%3C/svg%3E">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
     <script src="https://unpkg.com/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
@@ -37,8 +46,8 @@
         </div>
     </div>
 
-    <!-- FLASH MESSAGE -->
-    <div id="scanNotice" class="fixed inset-x-0 bottom-24 mx-4 z-[100] p-6 rounded-[2rem] shadow-2xl flex flex-col items-center justify-center text-center border-4 hidden">
+    <!-- NOTIFICATION FLASH -->
+    <div id="scanNotice" class="fixed inset-x-0 bottom-24 mx-4 p-6 rounded-[2rem] shadow-2xl flex flex-col items-center justify-center text-center border-4 hidden">
         <div id="noticeIcon" class="text-4xl mb-2"></div>
         <div id="noticeTitle" class="text-lg font-black uppercase tracking-tighter"></div>
         <div id="noticeMsg" class="text-sm font-bold opacity-90"></div>
@@ -47,14 +56,17 @@
     <!-- CHARGEMENT -->
     <div id="loadingOverlay" class="hidden fixed inset-0 bg-white/95 z-[110] flex flex-col items-center justify-center p-8 text-center">
         <div class="loader w-14 h-14 border-4 border-slate-200 rounded-full mb-6"></div>
-        <h2 class="text-xl font-black italic uppercase text-blue-600">Mise à jour...</h2>
+        <h2 class="text-xl font-black italic uppercase text-blue-600">Traitement...</h2>
     </div>
 
     <div class="max-w-md mx-auto pb-32">
         <header class="bg-white/90 backdrop-blur-md border-b sticky top-0 z-40 px-6 py-6 flex justify-between items-center shadow-sm">
             <div>
-                <h1 class="text-2xl font-black tracking-tighter italic uppercase"><span class="text-slate-900">CHECK</span><span class="text-blue-600">COURSES</span></h1>
-                <p id="session-display" class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Initialisation...</p>
+                <!-- LOGO COULEURS : CHECK (NOIR) COURSES (BLEU) -->
+                <h1 class="text-2xl font-black tracking-tighter italic uppercase leading-none">
+                    <span class="text-slate-900">CHECK</span><span class="text-blue-600">COURSES</span>
+                </h1>
+                <p id="session-display" class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1">Prêt</p>
             </div>
             <div id="main-counter" class="bg-blue-600 text-white text-sm font-black px-4 py-2 rounded-full shadow-lg border-2 border-white">0 / 0</div>
         </header>
@@ -65,7 +77,7 @@
                 <section id="stepSync" class="step-content hidden">
                     <div class="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-200 text-center">
                         <div class="text-5xl mb-4">🤝</div>
-                        <h2 class="text-xl font-bold mb-2 tracking-tight italic">Synchronisation</h2>
+                        <h2 class="text-xl font-bold mb-2 italic">Synchronisation</h2>
                         <input type="text" id="syncCodeInput" class="w-full p-4 border-2 border-slate-100 rounded-2xl mb-4 text-center font-bold" placeholder="Code de partage">
                         <button onclick="initSync()" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-xl uppercase active:scale-95 transition">Rejoindre / Créer</button>
                         <button onclick="skipSync()" class="w-full mt-4 text-slate-400 text-[10px] font-bold uppercase">Mode Local (Sans synchro)</button>
@@ -87,9 +99,9 @@
                 <!-- STEP 2 : REVIEW -->
                 <section id="stepReview" class="step-content hidden space-y-4">
                     <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
-                        <h2 class="font-bold text-lg mb-2 text-blue-600 italic uppercase">Articles extraits</h2>
+                        <h2 class="font-bold text-lg mb-2 text-blue-600 italic uppercase">Correction de liste</h2>
                         <textarea id="rawTextEditor" class="w-full h-80 p-5 border-2 border-slate-100 rounded-2xl text-sm font-medium outline-none focus:border-blue-500 bg-slate-50"></textarea>
-                        <button onclick="confirmList()" class="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl mt-4 uppercase">Valider et Partager</button>
+                        <button onclick="confirmList()" class="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl mt-4 uppercase text-sm">Valider et Partager</button>
                     </div>
                 </section>
 
@@ -110,7 +122,7 @@
 
             <div id="view-history" class="hidden space-y-6">
                 <div class="flex justify-between items-center px-2">
-                    <h2 class="text-2xl font-black text-slate-800 tracking-tighter uppercase italic">Historique</h2>
+                    <h2 class="text-2xl font-black text-slate-800 tracking-tighter italic uppercase">Historique</h2>
                     <button onclick="clearHistory()" class="text-[10px] font-black text-red-500 bg-red-50 px-4 py-2 rounded-full uppercase tracking-widest">Vider tout</button>
                 </div>
                 <div id="history-container" class="space-y-4"></div>
@@ -123,14 +135,15 @@
             <span class="text-2xl">📦</span><span class="text-[9px] font-black uppercase mt-1 tracking-widest">Scanner</span>
         </button>
         <button onclick="switchView('history')" id="tab-history" class="flex flex-col items-center py-4 px-10 text-slate-300 transition-all">
-            <span class="text-2xl">📜</span><span class="text-[9px] font-black uppercase mt-1 tracking-widest">Archives</span>
+            <span class="text-2xl">📜</span><span class="text-[9px] font-black uppercase mt-1 tracking-widest text-slate-400">Archives</span>
         </button>
     </nav>
 
     <script>
+        // CONFIG SUPABASE
         const SUPABASE_URL = "https://pefpsvulzgjhidjowcue.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBlZnBzdnVsemdqaGlkam93Y3VlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NjU2NTUsImV4cCI6MjA4OTM0MTY1NX0.QpToxUfjbB8MzY8svYLxAVEqerz-u52zpUTu3NobdoY";
-        const sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const dbClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         const pdfjs = window['pdfjs-dist/build/pdf'];
         pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -155,17 +168,10 @@
             if (saved && JSON.parse(saved).length > 0) {
                 shoppingList = JSON.parse(saved);
                 currentSyncId = shoppingList[0]?.session_id || null;
-                if(currentSyncId) { 
-                    document.getElementById('session-display').innerText = "☁️ Cloud : " + currentSyncId; 
-                    subscribeToChanges(); 
-                } else {
-                    document.getElementById('session-display').innerText = "🏠 Local";
-                }
+                if(currentSyncId) { document.getElementById('session-display').innerText = "☁️ Cloud : " + currentSyncId; subscribeToChanges(); }
+                else { document.getElementById('session-display').innerText = "🏠 Local"; }
                 showStep('step2'); renderList();
-            } else { 
-                document.getElementById('session-display').innerText = "Mode Solo";
-                showStep('stepSync'); 
-            }
+            } else { showStep('stepSync'); }
         };
 
         function showStep(id) { document.querySelectorAll('.step-content').forEach(s => s.classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); }
@@ -181,22 +187,22 @@
             if (!code) return alert("Entrez un code");
             currentSyncId = code;
             document.getElementById('session-display').innerText = "☁️ Cloud : " + code;
-            const { data } = await sbClient.from('shopping_items').select('*').eq('session_id', currentSyncId);
+            const { data } = await dbClient.from('shopping_items').select('*').eq('session_id', currentSyncId);
             if (data && data.length > 0) { shoppingList = data; showStep('step2'); renderList(); subscribeToChanges(); } else { showStep('step1'); }
         }
 
         function skipSync() { currentSyncId = null; document.getElementById('session-display').innerText = "🏠 Local"; showStep('step1'); }
 
         function subscribeToChanges() {
-            if (!sbClient || !currentSyncId) return;
-            sbClient.channel('sync-list')
+            if (!dbClient || !currentSyncId) return;
+            dbClient.channel('sync-list')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'shopping_items' }, async (payload) => {
                 if (payload.eventType === 'UPDATE' && payload.new.session_id === currentSyncId) {
                     const item = shoppingList.find(i => i.id === payload.new.id);
                     if (item) { item.scanned = payload.new.scanned; renderList(); }
                 } 
                 if (payload.eventType === 'DELETE') {
-                    const { count } = await sbClient.from('shopping_items').select('*', { count: 'exact', head: true }).eq('session_id', currentSyncId);
+                    const { count } = await dbClient.from('shopping_items').select('*', { count: 'exact', head: true }).eq('session_id', currentSyncId);
                     if (count === 0) { localStorage.removeItem('ch_active_session'); location.reload(); }
                 }
             }).subscribe();
@@ -242,8 +248,8 @@
             });
             if (currentSyncId) {
                 setLoading(true);
-                await sbClient.from('shopping_items').delete().eq('session_id', currentSyncId);
-                const { data } = await sbClient.from('shopping_items').insert(shoppingList).select();
+                await dbClient.from('shopping_items').delete().eq('session_id', currentSyncId);
+                const { data } = await dbClient.from('shopping_items').insert(shoppingList).select();
                 if (data) shoppingList = data;
                 subscribeToChanges(); setLoading(false);
             }
@@ -251,14 +257,15 @@
             renderList(); setTimeout(toggleScanner, 500);
         }
 
+        // SCANNER OPTIMISÉ POUR VERTICAL (QUAGGA2 CONFIG)
         function toggleScanner() {
             if (isScanning) { Quagga.stop(); isScanning = false; document.getElementById('btnToggleScanner').innerText = "Start Caméra"; } 
             else {
                 Quagga.init({
                     inputStream: { name: "Live", type: "LiveStream", target: document.querySelector('#reader'), constraints: { facingMode: "environment", width: 1280, height: 720 } },
-                    locator: { patchSize: "medium", halfSample: true },
+                    locator: { patchSize: "medium", halfSample: false }, // halfSample false pour mieux capter les lignes verticales fines
                     decoder: { readers: ["ean_reader", "ean_8_reader", "upc_reader", "code_128_reader"] },
-                    locate: true
+                    locate: true // Localisateur 360°
                 }, (err) => { if (err) return; Quagga.start(); isScanning = true; document.getElementById('btnToggleScanner').innerText = "Stop Caméra"; });
             }
         }
@@ -294,7 +301,7 @@
             const container = document.getElementById('modalChoices'); container.innerHTML = '';
             candidates.forEach(item => {
                 const btn = document.createElement('button');
-                btn.className = "w-full text-left p-5 rounded-2xl border-2 border-slate-100 bg-slate-50 font-bold text-sm active:bg-blue-600 active:text-white";
+                btn.className = "w-full text-left p-5 rounded-2xl border-2 border-slate-100 bg-slate-50 font-bold text-sm active:bg-blue-600 active:text-white transition-all";
                 btn.innerText = item.name; btn.onclick = () => { toggleItemState(item); closeSelectionModal(); };
                 container.appendChild(btn);
             });
@@ -303,24 +310,12 @@
 
         function closeSelectionModal() { document.getElementById('selectionModal').classList.add('hidden'); isProcessingScan = false; }
 
-        // --- FONCTION DE MISE À JOUR UNIQUE (CLOUD + LOCAL) ---
         async function toggleItemState(item) {
             item.scanned = !item.scanned;
-            
-            // 1. Sync Cloud si actif
-            if (currentSyncId && sbClient) {
-                await sbClient.from('shopping_items').update({ scanned: item.scanned }).eq('id', item.id);
-            }
-            
-            // 2. Sync Local permanent
+            if (currentSyncId) await dbClient.from('shopping_items').update({ scanned: item.scanned }).eq('id', item.id);
             localStorage.setItem('ch_active_session', JSON.stringify(shoppingList));
-            
-            // 3. UI
             renderList();
-            if (item.scanned) {
-                showFlash("Validé", item.name, "success");
-                if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-            }
+            if (item.scanned) { showFlash("Validé", item.name, "success"); if (navigator.vibrate) navigator.vibrate([100, 50, 100]); }
         }
 
         function renderList() {
@@ -363,16 +358,16 @@
 
         async function archiveOrder() {
             if (shoppingList.length === 0) return;
-            const history = JSON.parse(localStorage.getItem('ch_history_cloud_v28') || '[]');
+            const history = JSON.parse(localStorage.getItem('ch_history_cloud_v32') || '[]');
             history.unshift({ id: Date.now(), date: new Date().toLocaleString('fr-FR'), score: shoppingList.filter(i => i.scanned).length, total: shoppingList.length, items: shoppingList });
-            localStorage.setItem('ch_history_cloud_v28', JSON.stringify(history));
-            if (currentSyncId) await sbClient.from('shopping_items').delete().eq('session_id', currentSyncId);
+            localStorage.setItem('ch_history_cloud_v32', JSON.stringify(history));
+            if (currentSyncId) await dbClient.from('shopping_items').delete().eq('session_id', currentSyncId);
             localStorage.removeItem('ch_active_session'); location.reload();
         }
 
         function renderHistory() {
             const container = document.getElementById('history-container');
-            const history = JSON.parse(localStorage.getItem('ch_history_cloud_v28') || '[]');
+            const history = JSON.parse(localStorage.getItem('ch_history_cloud_v32') || '[]');
             if (history.length === 0) { container.innerHTML = `<p class="text-center py-20 text-slate-300 font-bold uppercase text-xs">Aucune archive</p>`; return; }
             container.innerHTML = history.map(o => `
                 <div class="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden mb-4 p-6">
@@ -386,29 +381,21 @@
                                 ${o.items.map(it => `<p class="text-[10px] ${it.scanned ? 'text-slate-400' : 'text-red-500 font-bold'}">${it.scanned ? '✅' : '❌'} ${it.name}</p>`).join('')}
                             </div>
                         </details>
-                        <button onclick="deleteOrder(${o.id})" class="p-3 bg-red-50 text-red-500 rounded-2xl text-sm">🗑️</button>
+                        <button onclick="deleteOrder(${o.id})" class="p-3 bg-red-50 text-red-500 rounded-2xl active:scale-90 transition-transform text-sm">🗑️</button>
                     </div>
                 </div>`).join('');
         }
 
         function deleteOrder(id) {
-            let history = JSON.parse(localStorage.getItem('ch_history_cloud_v28') || '[]');
+            let history = JSON.parse(localStorage.getItem('ch_history_cloud_v32') || '[]');
             history = history.filter(o => o.id !== id);
-            localStorage.setItem('ch_history_cloud_v28', JSON.stringify(history));
+            localStorage.setItem('ch_history_cloud_v32', JSON.stringify(history));
             renderHistory();
         }
 
-        function clearHistory() { if(confirm("Vider tout ?")) { localStorage.removeItem('ch_history_cloud_v28'); renderHistory(); } }
-
-        async function resetApp() {
-            if(confirm("Tout effacer ? (Synchronisé)")) {
-                if (currentSyncId) { await sbClient.from('shopping_items').delete().eq('session_id', currentSyncId); }
-                localStorage.removeItem('ch_active_session');
-                location.reload();
-            }
-        }
-
+        function clearHistory() { if(confirm("Vider tout ?")) { localStorage.removeItem('ch_history_cloud_v32'); renderHistory(); } }
         function setLoading(show) { document.getElementById('loadingOverlay').classList.toggle('hidden', !show); }
+        async function resetApp() { if(confirm("Voulez-vous tout effacer ?")) { if (currentSyncId) await dbClient.from('shopping_items').delete().eq('session_id', currentSyncId); localStorage.removeItem('ch_active_session'); location.reload(); } }
         document.getElementById('rawTextEditor').addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') confirmList(); });
     </script>
 </body>
