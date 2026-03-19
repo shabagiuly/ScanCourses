@@ -3,13 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CheckCourses - V28 Stable</title>
+    <title>CheckCourses - V29</title>
+
+    <!-- FAVICON (Pour les onglets) -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛒</text></svg>">
+
+    <!-- ICÔNE IOS (Pour l'écran d'accueil) - Design SC Stylisé -->
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%232563eb'/><text x='90' y='120' font-family='sans-serif' font-weight='900' font-size='80' fill='white' text-anchor='middle'>SC</text></svg>">
+    
+    <!-- CONFIGURATION WEB APP IOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CheckCourses">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
     <script src="https://unpkg.com/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <style>
         .loader { border-top-color: #3b82f6; animation: spinner 1s linear infinite; }
         @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -38,7 +50,7 @@
     </div>
 
     <!-- FLASH MESSAGE -->
-    <div id="scanNotice" class="fixed inset-x-0 bottom-24 mx-4 z-[100] p-6 rounded-[2rem] shadow-2xl flex flex-col items-center justify-center text-center border-4 hidden">
+    <div id="scanNotice" class="fixed inset-x-0 bottom-24 mx-4 p-6 rounded-[2rem] shadow-2xl flex flex-col items-center justify-center text-center border-4 hidden">
         <div id="noticeIcon" class="text-4xl mb-2"></div>
         <div id="noticeTitle" class="text-lg font-black uppercase tracking-tighter"></div>
         <div id="noticeMsg" class="text-sm font-bold opacity-90"></div>
@@ -68,7 +80,7 @@
                         <h2 class="text-xl font-bold mb-2 tracking-tight italic">Synchronisation</h2>
                         <input type="text" id="syncCodeInput" class="w-full p-4 border-2 border-slate-100 rounded-2xl mb-4 text-center font-bold" placeholder="Code de partage">
                         <button onclick="initSync()" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-xl uppercase active:scale-95 transition">Rejoindre / Créer</button>
-                        <button onclick="skipSync()" class="w-full mt-4 text-slate-400 text-[10px] font-bold uppercase">Mode Local (Sans synchro)</button>
+                        <button onclick="skipSync()" class="w-full mt-4 text-slate-400 text-[10px] font-bold uppercase">Mode Local</button>
                     </div>
                 </section>
 
@@ -87,9 +99,9 @@
                 <!-- STEP 2 : REVIEW -->
                 <section id="stepReview" class="step-content hidden space-y-4">
                     <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
-                        <h2 class="font-bold text-lg mb-2 text-blue-600 italic uppercase">Articles extraits</h2>
+                        <h2 class="font-bold text-lg mb-2 text-blue-600 italic uppercase">Correction</h2>
                         <textarea id="rawTextEditor" class="w-full h-80 p-5 border-2 border-slate-100 rounded-2xl text-sm font-medium outline-none focus:border-blue-500 bg-slate-50"></textarea>
-                        <button onclick="confirmList()" class="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl mt-4 uppercase">Valider et Partager</button>
+                        <button onclick="confirmList()" class="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl mt-4 uppercase text-sm">Valider et Partager</button>
                     </div>
                 </section>
 
@@ -123,7 +135,7 @@
             <span class="text-2xl">📦</span><span class="text-[9px] font-black uppercase mt-1 tracking-widest">Scanner</span>
         </button>
         <button onclick="switchView('history')" id="tab-history" class="flex flex-col items-center py-4 px-10 text-slate-300 transition-all">
-            <span class="text-2xl">📜</span><span class="text-[9px] font-black uppercase mt-1 tracking-widest">Archives</span>
+            <span class="text-2xl">📜</span><span class="text-[9px] font-black uppercase mt-1 tracking-widest text-slate-400">Archives</span>
         </button>
     </nav>
 
@@ -163,7 +175,7 @@
                 }
                 showStep('step2'); renderList();
             } else { 
-                document.getElementById('session-display').innerText = "Mode Solo";
+                document.getElementById('session-display').innerText = "En attente";
                 showStep('stepSync'); 
             }
         };
@@ -303,24 +315,12 @@
 
         function closeSelectionModal() { document.getElementById('selectionModal').classList.add('hidden'); isProcessingScan = false; }
 
-        // --- FONCTION DE MISE À JOUR UNIQUE (CLOUD + LOCAL) ---
         async function toggleItemState(item) {
             item.scanned = !item.scanned;
-            
-            // 1. Sync Cloud si actif
-            if (currentSyncId && sbClient) {
-                await sbClient.from('shopping_items').update({ scanned: item.scanned }).eq('id', item.id);
-            }
-            
-            // 2. Sync Local permanent
+            if (currentSyncId) await sbClient.from('shopping_items').update({ scanned: item.scanned }).eq('id', item.id);
             localStorage.setItem('ch_active_session', JSON.stringify(shoppingList));
-            
-            // 3. UI
             renderList();
-            if (item.scanned) {
-                showFlash("Validé", item.name, "success");
-                if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-            }
+            if (item.scanned) { showFlash("Validé", item.name, "success"); if (navigator.vibrate) navigator.vibrate([100, 50, 100]); }
         }
 
         function renderList() {
@@ -358,21 +358,21 @@
         function updateCounter() {
             const count = shoppingList.filter(i => i.scanned).length; const total = shoppingList.length;
             const el = document.getElementById('main-counter'); el.innerText = `${count} / ${total}`;
-            el.className = (count === total && total > 0) ? "bg-green-500 text-white text-sm font-black px-4 py-2 rounded-full" : "bg-blue-600 text-white text-sm font-black px-4 py-2 rounded-full";
+            el.className = (count === total && total > 0) ? "bg-green-500 text-white text-sm font-black px-4 py-2 rounded-full shadow-lg border-2 border-white" : "bg-blue-600 text-white text-sm font-black px-4 py-2 rounded-full shadow-lg border-2 border-white";
         }
 
         async function archiveOrder() {
             if (shoppingList.length === 0) return;
-            const history = JSON.parse(localStorage.getItem('ch_history_cloud_v28') || '[]');
+            const history = JSON.parse(localStorage.getItem('ch_history_v29') || '[]');
             history.unshift({ id: Date.now(), date: new Date().toLocaleString('fr-FR'), score: shoppingList.filter(i => i.scanned).length, total: shoppingList.length, items: shoppingList });
-            localStorage.setItem('ch_history_cloud_v28', JSON.stringify(history));
+            localStorage.setItem('ch_history_v29', JSON.stringify(history));
             if (currentSyncId) await sbClient.from('shopping_items').delete().eq('session_id', currentSyncId);
             localStorage.removeItem('ch_active_session'); location.reload();
         }
 
         function renderHistory() {
             const container = document.getElementById('history-container');
-            const history = JSON.parse(localStorage.getItem('ch_history_cloud_v28') || '[]');
+            const history = JSON.parse(localStorage.getItem('ch_history_v29') || '[]');
             if (history.length === 0) { container.innerHTML = `<p class="text-center py-20 text-slate-300 font-bold uppercase text-xs">Aucune archive</p>`; return; }
             container.innerHTML = history.map(o => `
                 <div class="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden mb-4 p-6">
@@ -386,29 +386,21 @@
                                 ${o.items.map(it => `<p class="text-[10px] ${it.scanned ? 'text-slate-400' : 'text-red-500 font-bold'}">${it.scanned ? '✅' : '❌'} ${it.name}</p>`).join('')}
                             </div>
                         </details>
-                        <button onclick="deleteOrder(${o.id})" class="p-3 bg-red-50 text-red-500 rounded-2xl text-sm">🗑️</button>
+                        <button onclick="deleteOrder(${o.id})" class="p-3 bg-red-50 text-red-500 rounded-2xl active:scale-90 transition-transform text-sm">🗑️</button>
                     </div>
                 </div>`).join('');
         }
 
         function deleteOrder(id) {
-            let history = JSON.parse(localStorage.getItem('ch_history_cloud_v28') || '[]');
+            let history = JSON.parse(localStorage.getItem('ch_history_v29') || '[]');
             history = history.filter(o => o.id !== id);
-            localStorage.setItem('ch_history_cloud_v28', JSON.stringify(history));
+            localStorage.setItem('ch_history_v29', JSON.stringify(history));
             renderHistory();
         }
 
-        function clearHistory() { if(confirm("Vider tout ?")) { localStorage.removeItem('ch_history_cloud_v28'); renderHistory(); } }
-
-        async function resetApp() {
-            if(confirm("Tout effacer ? (Synchronisé)")) {
-                if (currentSyncId) { await sbClient.from('shopping_items').delete().eq('session_id', currentSyncId); }
-                localStorage.removeItem('ch_active_session');
-                location.reload();
-            }
-        }
-
+        function clearHistory() { if(confirm("Vider tout ?")) { localStorage.removeItem('ch_history_v29'); renderHistory(); } }
         function setLoading(show) { document.getElementById('loadingOverlay').classList.toggle('hidden', !show); }
+        async function resetApp() { if(confirm("Tout effacer ?")) { if (currentSyncId) await sbClient.from('shopping_items').delete().eq('session_id', currentSyncId); localStorage.removeItem('ch_active_session'); location.reload(); } }
         document.getElementById('rawTextEditor').addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') confirmList(); });
     </script>
 </body>
