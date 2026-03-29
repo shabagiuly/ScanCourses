@@ -3,128 +3,146 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CheckCourses</title>
-
+    <title>CheckCourses V34 - Ultra</title>
+    
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🛒%3C/text%3E%3C/svg%3E">
     <link rel="apple-touch-icon" href="IMG_0060.png">
-    
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
     <script src="https://unpkg.com/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <style>
-        .loader { border-top-color: #3b82f6; animation: spinner 1s linear infinite; }
+        .loader { border-top-color: #3b82f6; animation: spinner 1.5s linear infinite; }
         @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .checked-item { background-color: #f0fdf4 !important; border-color: #bbf7d0 !important; opacity: 0.6; }
-        .checked-text { text-decoration: line-through; color: #166534; }
+        .checked-item { background-color: #f0fdf4 !important; opacity: 0.5; }
         .tab-active { color: #2563eb !important; border-top: 4px solid #2563eb; }
-        #reader { width: 100%; border-radius: 32px; overflow: hidden; background: #000; position: relative; }
-        #reader video, #reader canvas { border-radius: 32px; width: 100%; }
-        .drawingBuffer { position: absolute; top: 0; left: 0; z-index: 10; }
+        
+        /* Scanner Fixe Miniature */
+        #scannerContainer { position: sticky; top: 72px; z-index: 30; transition: all 0.3s ease; }
+        #reader { width: 100%; height: 180px; border-radius: 24px; overflow: hidden; background: #000; }
+        #reader video, #reader canvas { border-radius: 24px; }
+        .drawingBuffer { position: absolute; top: 0; left: 0; }
+        
         .safe-bottom { padding-bottom: calc(1.5rem + env(safe-area-inset-bottom)); }
-        .cat-badge { font-size: 9px; padding: 2px 6px; border-radius: 99px; text-transform: uppercase; font-weight: 900; letter-spacing: 0.05em; }
-        #scanNotice { transition: all 0.3s ease-in-out; transform: translateY(150%); z-index: 300; }
+        #scanNotice { transition: all 0.3s ease; transform: translateY(150%); z-index: 100; }
         #scanNotice.show { transform: translateY(0); }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen text-slate-900 font-sans select-none">
+<body class="bg-slate-100 min-h-screen text-slate-900 font-sans select-none">
 
+    <!-- NOTIFICATION FLASH -->
+    <div id="scanNotice" class="fixed inset-x-0 bottom-24 mx-4 p-6 rounded-[2rem] shadow-2xl flex flex-col items-center justify-center text-center border-4 hidden">
+        <div id="noticeIcon" class="text-4xl mb-2"></div>
+        <div id="noticeTitle" class="text-lg font-black uppercase"></div>
+        <div id="noticeMsg" class="text-sm font-bold opacity-90"></div>
+    </div>
+
+    <!-- MODAL AMBIGUÏTÉ / LOT -->
     <div id="selectionModal" class="hidden fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4">
         <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"></div>
         <div class="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-6">
-            <h3 class="text-xl font-black text-slate-800 mb-2 italic">Lequel avez-vous ?</h3>
-            <div id="modalChoices" class="space-y-3 max-h-[50vh] overflow-y-auto mb-6 pr-2"></div>
+            <h3 id="modalTitle" class="text-xl font-black text-slate-800 mb-2 italic">Lequel avez-vous ?</h3>
+            <div id="modalChoices" class="space-y-3 max-h-[40vh] overflow-y-auto mb-6"></div>
+            <div id="batchActionContainer" class="hidden mb-4">
+                <button onclick="validateBatch()" class="w-full bg-green-600 text-white font-black py-4 rounded-2xl shadow-lg uppercase">Valider toute la quantité ✅</button>
+            </div>
             <button onclick="closeSelectionModal()" class="w-full py-4 text-slate-400 font-black uppercase text-[10px]">Annuler</button>
         </div>
     </div>
 
-    <div id="scanNotice" class="fixed inset-x-0 bottom-24 mx-4 p-6 rounded-[2rem] shadow-2xl flex flex-col items-center justify-center text-center border-4 hidden">
-        <div id="noticeIcon" class="text-4xl mb-2"></div>
-        <div id="noticeTitle" class="text-lg font-black uppercase tracking-tighter"></div>
-        <div id="noticeMsg" class="text-sm font-bold opacity-90"></div>
-    </div>
-
+    <!-- LOADING -->
     <div id="loadingOverlay" class="hidden fixed inset-0 bg-white/95 z-[110] flex flex-col items-center justify-center p-8 text-center">
         <div class="loader w-14 h-14 border-4 border-slate-200 rounded-full mb-6"></div>
-        <h2 class="text-xl font-black italic uppercase text-blue-600">Traitement...</h2>
+        <h2 class="text-xl font-black italic uppercase text-blue-600">Chargement...</h2>
     </div>
 
     <div class="max-w-md mx-auto pb-32">
-        <header class="bg-white/90 backdrop-blur-md border-b sticky top-0 z-40 px-6 py-6 flex justify-between items-center shadow-sm">
-            <div>
-                <h1 class="text-2xl font-black tracking-tighter italic uppercase leading-none">
+        <!-- HEADER FIXE AVEC RECHERCHE -->
+        <header class="bg-white shadow-sm sticky top-0 z-40">
+            <div class="px-6 py-4 flex justify-between items-center border-b">
+                <h1 class="text-xl font-black tracking-tighter italic uppercase">
                     <span class="text-slate-900">CHECK</span><span class="text-blue-600">COURSES</span>
                 </h1>
-                <p id="session-display" class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1">Prêt</p>
+                <div id="main-counter" class="bg-blue-600 text-white text-[10px] font-black px-3 py-1.5 rounded-full">0/0</div>
             </div>
-            <div id="main-counter" class="bg-blue-600 text-white text-sm font-black px-4 py-2 rounded-full shadow-lg border-2 border-white">0 / 0</div>
+            <!-- BARRE DE RECHERCHE MANUELLE -->
+            <div id="searchBar" class="hidden px-4 py-3 bg-slate-50">
+                <div class="relative">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2">🔍</span>
+                    <input type="text" id="manualSearchInput" oninput="renderList()" placeholder="Chercher un produit..." class="w-full pl-10 pr-4 py-3 bg-white border-2 border-slate-200 rounded-2xl text-sm font-bold focus:border-blue-500 outline-none">
+                </div>
+            </div>
         </header>
 
         <main class="p-4">
             <div id="view-active">
-                <section id="stepSync" class="step-content hidden">
+                <!-- STEP SYNC -->
+                <section id="stepSync" class="step-content">
                     <div class="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-200 text-center">
                         <div class="text-5xl mb-4">🤝</div>
-                        <h2 class="text-xl font-bold mb-2 italic">Synchronisation</h2>
+                        <h2 class="text-xl font-bold mb-4 italic">Synchronisation</h2>
                         <input type="text" id="syncCodeInput" class="w-full p-4 border-2 border-slate-100 rounded-2xl mb-4 text-center font-bold" placeholder="Code de partage">
-                        <button onclick="initSync()" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-xl uppercase active:scale-95 transition">Rejoindre / Créer</button>
+                        <button onclick="initSync()" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-xl uppercase">Rejoindre</button>
                         <button onclick="skipSync()" class="w-full mt-4 text-slate-400 text-[10px] font-bold uppercase">Mode Local</button>
                     </div>
                 </section>
 
+                <!-- STEP 1 : IMPORT -->
                 <section id="step1" class="step-content hidden text-center">
                     <div class="bg-white p-10 rounded-[3rem] shadow-sm border border-slate-200">
                         <div class="text-6xl mb-6">📄</div>
-                        <h2 class="text-xl font-bold mb-2">Charger un bon</h2>
-                        <label class="block cursor-pointer bg-blue-600 text-white font-bold py-5 px-8 rounded-3xl shadow-xl active:scale-95 transition text-lg mt-6">
-                            Choisir PDF ou Image
+                        <label class="block cursor-pointer bg-blue-600 text-white font-black py-5 px-8 rounded-3xl shadow-xl active:scale-95 transition text-lg">
+                            Importer le Bon
                             <input type="file" id="fileInput" class="hidden" accept="image/*,.pdf" onchange="startProcess(this)">
                         </label>
                     </div>
                 </section>
 
+                <!-- STEP 2 : REVIEW -->
                 <section id="stepReview" class="step-content hidden space-y-4">
                     <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
-                        <h2 class="font-bold text-lg mb-2 text-blue-600 italic uppercase">Correction</h2>
+                        <h2 class="font-bold text-lg mb-2 text-blue-600 italic uppercase">Extraits</h2>
                         <textarea id="rawTextEditor" class="w-full h-80 p-5 border-2 border-slate-100 rounded-2xl text-sm font-medium outline-none focus:border-blue-500 bg-slate-50"></textarea>
-                        <button onclick="confirmList()" class="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl mt-4 uppercase text-sm">Valider et Partager</button>
+                        <button onclick="confirmList()" class="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl mt-4 uppercase">Confirmer</button>
                     </div>
                 </section>
 
-                <section id="step2" class="step-content hidden space-y-6">
-                    <div id="scannerBlock" class="bg-white p-4 rounded-[2.5rem] shadow-sm border border-slate-200">
+                <!-- STEP 3 : SCAN MINIATURE & LISTE -->
+                <section id="step2" class="step-content hidden space-y-4">
+                    <div id="scannerContainer" class="bg-white p-3 rounded-[2rem] shadow-md border border-slate-100">
                         <div id="reader"></div>
-                        <div class="mt-4 flex flex-col items-center bg-slate-50 p-4 rounded-2xl">
-                            <span id="lastScannedName" class="text-sm font-bold text-blue-600 text-center">Prêt à scanner</span>
-                            <button id="btnToggleScanner" onclick="toggleScanner()" class="mt-4 bg-red-50 text-red-600 px-8 py-2.5 rounded-full text-[10px] font-black uppercase shadow-sm">Caméra On/Off</button>
+                        <div class="flex justify-between items-center mt-3 px-2">
+                            <span id="lastScannedName" class="text-[10px] font-bold text-blue-600 truncate max-w-[60%]">Prêt...</span>
+                            <button id="btnToggleScanner" onclick="toggleScanner()" class="bg-red-50 text-red-600 px-4 py-1.5 rounded-full text-[9px] font-black uppercase">Stop</button>
                         </div>
                     </div>
-                    <div id="itemsList" class="space-y-8"></div>
-                    <button onclick="archiveOrder()" class="w-full bg-green-500 text-white font-black py-6 rounded-[2.2rem] shadow-xl mt-6 uppercase text-sm">Archiver la livraison</button>
-                    <button onclick="resetApp()" class="w-full mt-4 text-slate-300 text-[10px] font-bold uppercase text-center">Tout annuler / Reset</button>
+
+                    <div id="itemsList" class="space-y-4 pt-2"></div>
+                    
+                    <button onclick="archiveOrder()" class="w-full bg-green-500 text-white font-black py-6 rounded-[2.2rem] shadow-xl mt-10 uppercase text-sm">Terminer livraison</button>
+                    <button onclick="resetApp()" class="w-full mt-4 text-slate-300 text-[10px] font-bold uppercase text-center tracking-widest">Reset Complet</button>
                 </section>
             </div>
 
             <div id="view-history" class="hidden space-y-6">
-                <div class="flex justify-between items-center px-2">
-                    <h2 class="text-2xl font-black text-slate-800 tracking-tighter uppercase italic">Historique</h2>
-                    <button onclick="clearHistory()" class="text-[10px] font-black text-red-500 bg-red-50 px-4 py-2 rounded-full uppercase tracking-widest">Vider tout</button>
-                </div>
+                <h2 class="text-2xl font-black px-2 italic uppercase">Archives</h2>
                 <div id="history-container" class="space-y-4"></div>
+                <button onclick="clearHistory()" class="w-full py-4 text-red-400 text-[10px] font-bold uppercase">Vider l'historique</button>
             </div>
         </main>
     </div>
 
+    <!-- TABS -->
     <nav class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-200 flex justify-around safe-bottom z-50">
-        <button onclick="switchView('active')" id="tab-active" class="flex flex-col items-center py-4 px-10 tab-active transition-all">
-            <span class="text-2xl">📦</span><span class="text-[9px] font-black uppercase mt-1 tracking-widest">Scanner</span>
+        <button onclick="switchView('active')" id="tab-active" class="flex flex-col items-center py-3 px-10 tab-active">
+            <span class="text-2xl">📦</span><span class="text-[9px] font-black uppercase">Scanner</span>
         </button>
-        <button onclick="switchView('history')" id="tab-history" class="flex flex-col items-center py-4 px-10 text-slate-300 transition-all">
-            <span class="text-2xl">📜</span><span class="text-[9px] font-black uppercase mt-1 tracking-widest text-slate-400">Archives</span>
+        <button onclick="switchView('history')" id="tab-history" class="flex flex-col items-center py-3 px-10 text-slate-300">
+            <span class="text-2xl">📜</span><span class="text-[9px] font-black uppercase">Archives</span>
         </button>
     </nav>
 
@@ -137,15 +155,11 @@
         pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
         let shoppingList = [];
-        let isScanning = false;
-        let lastCode = "";
-        let lastScanTime = 0;
-        let isProcessingScan = false;
-        let currentSyncId = null;
+        let isScanning = false, lastCode = "", lastScanTime = 0, isProcessingScan = false, currentSyncId = null, currentBatchName = null;
 
         const CATEGORIES = {
-            "FRAIS": { icon: "🥛", label: "Frais & Viandes", keywords: /lait|yaourt|beurre|fromage|steak|jambon|poulet|oeuf|traiteur|chiffonnade|beillevaire|creme/i },
-            "FRUITS": { icon: "🍎", label: "Fruits & Légumes", keywords: /pomme|banane|tomate|carotte|salade|oignon|fruit|legume|poire|melon|mangue|mais|pois|fraise|peche|courgette|haricot|chou/i },
+            "FRAIS": { icon: "🥛", label: "Frais", keywords: /lait|yaourt|beurre|fromage|steak|jambon|poulet|oeuf|traiteur|chiffonnade|beillevaire|creme/i },
+            "FRUITS": { icon: "🍎", label: "Fruits/Lég", keywords: /pomme|banane|tomate|carotte|salade|oignon|fruit|legume|poire|melon|mangue|mais|pois|fraise|peche|courgette|haricot|chou/i },
             "BOISSONS": { icon: "🥤", label: "Boissons", keywords: /eau|jus|soda|biere|vin|cola|the|ice tea|lipton|innocent|volvic|sirop/i },
             "EPICERIE": { icon: "📦", label: "Épicerie", keywords: /pate|riz|gateau|chocolat|sucre|farine|conserve|muesli|biscuit|sable|granola|cereale|chocapic|bjorg|gerble|savon|shampoing|dentifrice|lessive|entretien|hygiene/i },
             "AUTRE": { icon: "✨", label: "Autres", keywords: /./i }
@@ -153,13 +167,14 @@
 
         window.onload = function() {
             const saved = localStorage.getItem('ch_active_session');
-            if (saved && JSON.parse(saved).length > 0) {
+            if (saved) {
                 shoppingList = JSON.parse(saved);
                 currentSyncId = shoppingList[0]?.session_id || null;
-                if(currentSyncId) { document.getElementById('session-display').innerText = "☁️ Cloud : " + currentSyncId; subscribeToChanges(); }
-                else { document.getElementById('session-display').innerText = "🏠 Local"; }
-                showStep('step2'); renderList();
-            } else { document.getElementById('session-display').innerText = "Prêt"; showStep('stepSync'); }
+                showStep('step2');
+                document.getElementById('searchBar').classList.remove('hidden');
+                renderList();
+                if(currentSyncId) subscribeToChanges();
+            } else { showStep('stepSync'); }
         };
 
         function showStep(id) { document.querySelectorAll('.step-content').forEach(s => s.classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); }
@@ -174,12 +189,11 @@
             const code = document.getElementById('syncCodeInput').value.trim().toLowerCase();
             if (!code) return alert("Entrez un code");
             currentSyncId = code;
-            document.getElementById('session-display').innerText = "☁️ Cloud : " + code;
             const { data } = await dbClient.from('shopping_items').select('*').eq('session_id', currentSyncId);
-            if (data && data.length > 0) { shoppingList = data; showStep('step2'); renderList(); subscribeToChanges(); } else { showStep('step1'); }
+            if (data && data.length > 0) { shoppingList = data; showStep('step2'); document.getElementById('searchBar').classList.remove('hidden'); renderList(); subscribeToChanges(); } else { showStep('step1'); }
         }
 
-        function skipSync() { currentSyncId = null; document.getElementById('session-display').innerText = "🏠 Local"; showStep('step1'); }
+        function skipSync() { currentSyncId = null; showStep('step1'); }
 
         function subscribeToChanges() {
             if (!dbClient || !currentSyncId) return;
@@ -221,6 +235,8 @@
             let results = []; let matches;
             while ((matches = regex.exec(cleanText)) !== null) {
                 let qty = Math.floor(parseFloat(matches[1].replace(',', '.')));
+                // FILTRE QUANTITÉ : Si > 30, c'est probablement un poids en gramme, on ramène à 1
+                if (qty > 30) qty = 1;
                 let name = matches[3].trim().split(/\d+[.,]\d{2}/)[0].trim();
                 if (name.length > 3 && !name.match(/Désignation|Montant/i)) { for (let j = 0; j < qty; j++) results.push(name); }
             }
@@ -241,45 +257,44 @@
                 if (data) shoppingList = data;
                 subscribeToChanges(); setLoading(false);
             }
-            showStep('step2'); localStorage.setItem('ch_active_session', JSON.stringify(shoppingList));
+            showStep('step2'); 
+            document.getElementById('searchBar').classList.remove('hidden');
+            localStorage.setItem('ch_active_session', JSON.stringify(shoppingList));
             renderList(); setTimeout(toggleScanner, 500);
         }
 
         function toggleScanner() {
-            if (isScanning) { Quagga.stop(); isScanning = false; document.getElementById('btnToggleScanner').innerText = "Start Caméra"; } 
+            if (isScanning) { Quagga.stop(); isScanning = false; document.getElementById('btnToggleScanner').innerText = "Start"; } 
             else {
                 Quagga.init({
                     inputStream: { name: "Live", type: "LiveStream", target: document.querySelector('#reader'), constraints: { facingMode: "environment", width: 1280, height: 720 } },
                     locator: { patchSize: "medium", halfSample: false },
                     decoder: { readers: ["ean_reader", "ean_8_reader", "upc_reader", "code_128_reader"] },
                     locate: true
-                }, (err) => { if (err) return; Quagga.start(); isScanning = true; document.getElementById('btnToggleScanner').innerText = "Stop Caméra"; });
+                }, (err) => { if (err) return; Quagga.start(); isScanning = true; document.getElementById('btnToggleScanner').innerText = "Stop"; });
             }
         }
 
-        // --- FONCTION DE RECHERCHE CASCADE + MÉMORISATION ---
         async function getProductName(code) {
-            // 1. Chercher dans ta propre base de produits mémorisés
+            // RECHERCHE EN CASCADE
             const { data: custom } = await dbClient.from('custom_products').select('name').eq('barcode', code).single();
             if (custom) return custom.name;
 
-            // 2. Chercher dans Open Food Facts
             const resFood = await fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`);
             const dataFood = await resFood.json();
             if (dataFood.status === 1) return dataFood.product.product_name_fr || dataFood.product.product_name;
 
-            // 3. Chercher dans Open Beauty Facts
             const resBeauty = await fetch(`https://world.openbeautyfacts.org/api/v0/product/${code}.json`);
             const dataBeauty = await resBeauty.json();
             if (dataBeauty.status === 1) return dataBeauty.product.product_name_fr || dataBeauty.product.product_name;
 
-            // 4. Si inconnu, demander à l'utilisateur de mémoriser
-            if (isScanning) Quagga.stop(); // On pause le scan
-            const userChoice = prompt("Produit inconnu. Quel est le nom de cet article ?");
+            // DÉLAI AVANT MÉMORISATION (Pour être sûr que ce n'est pas un mauvais scan passager)
+            await new Promise(r => setTimeout(r, 800));
+            if (isScanning) Quagga.stop();
+            const userChoice = prompt("Produit inconnu ("+code+"). Quel est son nom ?");
             if (userChoice && userChoice.length > 2) {
-                // Enregistrer dans Supabase pour la prochaine fois
                 await dbClient.from('custom_products').insert([{ barcode: code, name: userChoice }]);
-                if (isScanning) Quagga.start(); // On reprend le scan
+                if (isScanning) Quagga.start();
                 return userChoice;
             }
             if (isScanning) Quagga.start();
@@ -290,17 +305,12 @@
             const code = data.codeResult.code; const now = Date.now();
             if (!code || isProcessingScan || (code === lastCode && now - lastScanTime < 5000)) return;
             isProcessingScan = true; lastCode = code; lastScanTime = now;
-            
-            document.getElementById('lastScannedName').innerText = "Recherche...";
+            document.getElementById('lastScannedName').innerText = "Vérification...";
             const name = await getProductName(code);
-            
             if (name) {
                 document.getElementById('lastScannedName').innerText = name;
                 smartMatch(name);
-            } else {
-                showFlash("Inconnu", "Code ignoré", "error");
-            }
-            isProcessingScan = false;
+            } else { isProcessingScan = false; }
         });
 
         function smartMatch(scannedName) {
@@ -312,23 +322,58 @@
                 scannedWords.forEach(sw => { if (itemWords.some(iw => iw.includes(sw) || sw.includes(iw))) score++; });
                 return score >= 2;
             });
-            if (matches.length === 0) { showFlash("Non trouvé", scannedName, "warning"); }
-            else if (matches.length === 1) { toggleItemState(matches[0]); }
-            else { openSelectionModal(matches); }
+            if (matches.length === 0) { showFlash("Non trouvé", scannedName, "warning"); isProcessingScan = false; }
+            else if (matches.length === 1) { 
+                const sameItemsCount = shoppingList.filter(i => i.name === matches[0].name && !i.scanned).length;
+                if (sameItemsCount > 1) {
+                    currentBatchName = matches[0].name;
+                    openSelectionModal([matches[0]], true);
+                } else {
+                    toggleItemState(matches[0]); isProcessingScan = false;
+                }
+            }
+            else { openSelectionModal(matches, false); }
         }
 
-        function openSelectionModal(candidates) {
-            const container = document.getElementById('modalChoices'); container.innerHTML = '';
-            candidates.forEach(item => {
-                const btn = document.createElement('button');
-                btn.className = "w-full text-left p-5 rounded-2xl border-2 border-slate-100 bg-slate-50 font-bold text-sm active:bg-blue-600 active:text-white transition-all";
-                btn.innerText = item.name; btn.onclick = () => { toggleItemState(item); closeSelectionModal(); };
-                container.appendChild(btn);
-            });
+        function openSelectionModal(candidates, isBatch = false) {
+            const container = document.getElementById('modalChoices'); 
+            const batchContainer = document.getElementById('batchActionContainer');
+            container.innerHTML = '';
+            document.getElementById('modalTitle').innerText = isBatch ? "Plusieurs exemplaires ?" : "Lequel avez-vous ?";
+            
+            if(isBatch) {
+                batchContainer.classList.remove('hidden');
+                const p = document.createElement('p');
+                p.className = "text-center font-bold text-blue-600 mb-4";
+                p.innerText = "Produit : " + candidates[0].name;
+                container.appendChild(p);
+            } else {
+                batchContainer.classList.add('hidden');
+                candidates.forEach(item => {
+                    const btn = document.createElement('button');
+                    btn.className = "w-full text-left p-5 rounded-2xl border-2 border-slate-100 bg-slate-50 font-bold text-sm active:bg-blue-600 active:text-white";
+                    btn.innerText = item.name; btn.onclick = () => { toggleItemState(item); closeSelectionModal(); };
+                    container.appendChild(btn);
+                });
+            }
             document.getElementById('selectionModal').classList.remove('hidden');
         }
 
-        function closeSelectionModal() { document.getElementById('selectionModal').classList.add('hidden'); isProcessingScan = false; }
+        async function validateBatch() {
+            setLoading(true);
+            const itemsToValidate = shoppingList.filter(i => i.name === currentBatchName && !i.scanned);
+            for(let item of itemsToValidate) {
+                item.scanned = true;
+                if (currentSyncId) await dbClient.from('shopping_items').update({ scanned: true }).eq('id', item.id);
+            }
+            localStorage.setItem('ch_active_session', JSON.stringify(shoppingList));
+            renderList();
+            setLoading(false);
+            closeSelectionModal();
+            showFlash("Lot Validé", currentBatchName, "success");
+        }
+
+        function closeSelectionModal() { document.getElementById('selectionModal').classList.add('hidden'); isProcessingScan = false; currentBatchName = null; }
 
         async function toggleItemState(item) {
             item.scanned = !item.scanned;
@@ -340,7 +385,11 @@
 
         function renderList() {
             const container = document.getElementById('itemsList'); container.innerHTML = '';
-            const groups = shoppingList.reduce((acc, item) => { if (!acc[item.category]) acc[item.category] = []; acc[item.category].push(item); return acc; }, {});
+            const query = document.getElementById('manualSearchInput').value.toLowerCase();
+            
+            const filtered = shoppingList.filter(item => item.name.toLowerCase().includes(query));
+            const groups = filtered.reduce((acc, item) => { if (!acc[item.category]) acc[item.category] = []; acc[item.category].push(item); return acc; }, {});
+            
             Object.keys(CATEGORIES).forEach(catKey => {
                 if (!groups[catKey]) return;
                 const section = document.createElement('div');
@@ -349,7 +398,7 @@
                     <div class="space-y-2 mb-6">
                         ${groups[catKey].sort((a,b) => a.scanned - b.scanned).map(item => `
                             <div class="p-5 rounded-2xl border-2 flex justify-between items-center bg-white ${item.scanned ? 'checked-item border-transparent' : 'border-slate-100 shadow-sm'}">
-                                <span class="text-sm font-bold flex-1 pr-4 ${item.scanned ? 'checked-text' : ''}">${item.name}</span>
+                                <span class="text-sm font-bold flex-1 pr-4">${item.name}</span>
                                 <button onclick="manualToggle(${item.id})" class="h-10 w-10 rounded-xl flex items-center justify-center ${item.scanned ? 'bg-green-100 text-green-600' : 'bg-slate-50 text-slate-300'}">${item.scanned ? '✅' : '⬜'}</button>
                             </div>`).join('')}
                     </div>`;
@@ -369,51 +418,36 @@
         }
 
         function manualToggle(id) { const item = shoppingList.find(i => i.id === id); toggleItemState(item); }
-
-        function updateCounter() {
-            const count = shoppingList.filter(i => i.scanned).length; const total = shoppingList.length;
-            const el = document.getElementById('main-counter'); el.innerText = `${count} / ${total}`;
-            el.className = (count === total && total > 0) ? "bg-green-500 text-white text-sm font-black px-4 py-2 rounded-full shadow-lg border-2 border-white" : "bg-blue-600 text-white text-sm font-black px-4 py-2 rounded-full shadow-lg border-2 border-white";
-        }
-
+        function updateCounter() { const count = shoppingList.filter(i => i.scanned).length; const total = shoppingList.length; document.getElementById('main-counter').innerText = count + "/" + total; }
+        
         async function archiveOrder() {
             if (shoppingList.length === 0) return;
-            const history = JSON.parse(localStorage.getItem('ch_history_v33') || '[]');
+            const history = JSON.parse(localStorage.getItem('ch_history_final') || '[]');
             history.unshift({ id: Date.now(), date: new Date().toLocaleString('fr-FR'), score: shoppingList.filter(i => i.scanned).length, total: shoppingList.length, items: shoppingList });
-            localStorage.setItem('ch_history_v33', JSON.stringify(history));
+            localStorage.setItem('ch_history_final', JSON.stringify(history));
             if (currentSyncId) await dbClient.from('shopping_items').delete().eq('session_id', currentSyncId);
             localStorage.removeItem('ch_active_session'); location.reload();
         }
 
         function renderHistory() {
             const container = document.getElementById('history-container');
-            const history = JSON.parse(localStorage.getItem('ch_history_v33') || '[]');
-            if (history.length === 0) { container.innerHTML = `<p class="text-center py-20 text-slate-300 font-bold uppercase text-xs">Aucune archive</p>`; return; }
+            const history = JSON.parse(localStorage.getItem('ch_history_final') || '[]');
+            if (history.length === 0) { container.innerHTML = `<p class="text-center py-20 text-slate-300 font-bold uppercase text-xs">Vide</p>`; return; }
             container.innerHTML = history.map(o => `
                 <div class="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden mb-4 p-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <details class="flex-1 group">
-                            <summary class="list-none cursor-pointer flex justify-between items-center pr-4">
-                                <div><p class="text-[9px] font-black text-blue-500 uppercase">${o.date}</p><h3 class="font-bold">Livraison</h3></div>
-                                <span class="font-black text-sm ${o.score === o.total ? 'text-green-500' : 'text-orange-500'}">${o.score}/${o.total}</span>
-                            </summary>
-                            <div class="mt-4 space-y-1.5 border-t pt-4">
-                                ${o.items.map(it => `<p class="text-[10px] ${it.scanned ? 'text-slate-400' : 'text-red-500 font-bold'}">${it.scanned ? '✅' : '❌'} ${it.name}</p>`).join('')}
-                            </div>
-                        </details>
-                        <button onclick="deleteOrder(${o.id})" class="p-3 bg-red-50 text-red-500 rounded-2xl active:scale-90 transition-transform text-sm">🗑️</button>
-                    </div>
+                    <details class="group">
+                        <summary class="list-none cursor-pointer flex justify-between items-center pr-4">
+                            <div><p class="text-[9px] font-black text-blue-500 uppercase">${o.date}</p><h3 class="font-bold">Livraison</h3></div>
+                            <span class="font-black text-sm ${o.score === o.total ? 'text-green-500' : 'text-orange-500'}">${o.score}/${o.total}</span>
+                        </summary>
+                        <div class="mt-4 space-y-1.5 border-t pt-4">
+                            ${o.items.map(it => `<p class="text-[10px] ${it.scanned ? 'text-slate-400' : 'text-red-500 font-bold'}">${it.scanned ? '✅' : '❌'} ${it.name}</p>`).join('')}
+                        </div>
+                    </details>
                 </div>`).join('');
         }
 
-        function deleteOrder(id) {
-            let history = JSON.parse(localStorage.getItem('ch_history_v33') || '[]');
-            history = history.filter(o => o.id !== id);
-            localStorage.setItem('ch_history_v33', JSON.stringify(history));
-            renderHistory();
-        }
-
-        function clearHistory() { if(confirm("Vider tout ?")) { localStorage.removeItem('ch_history_v33'); renderHistory(); } }
+        function clearHistory() { if(confirm("Vider tout ?")) { localStorage.removeItem('ch_history_final'); renderHistory(); } }
         function setLoading(show) { document.getElementById('loadingOverlay').classList.toggle('hidden', !show); }
         async function resetApp() { if(confirm("Tout effacer ?")) { if (currentSyncId) await dbClient.from('shopping_items').delete().eq('session_id', currentSyncId); localStorage.removeItem('ch_active_session'); location.reload(); } }
         document.getElementById('rawTextEditor').addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') confirmList(); });
