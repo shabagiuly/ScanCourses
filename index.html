@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CheckCourses V39 - Focus Stable</title>
+    <title>CheckCourses V40 - Focus Natif</title>
     
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛒</text></svg>">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🛒%3C/text%3E%3C/svg%3E">
     <link rel="apple-touch-icon" href="IMG_0060.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://unpkg.com/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -20,9 +20,7 @@
         .checked-item { background-color: #f0fdf4 !important; opacity: 0.5; border-color: transparent !important; }
         .checked-text { text-decoration: line-through; color: #166534; }
         #scannerContainer { position: sticky; top: 130px; z-index: 30; }
-        #reader { width: 100%; height: 180px; border-radius: 24px; overflow: hidden; background: #000; position: relative; }
-        #reader video, #reader canvas { border-radius: 24px; width: 100%; object-fit: cover; }
-        .drawingBuffer { position: absolute; top: 0; left: 0; z-index: 10; }
+        #reader { width: 100%; border-radius: 24px; overflow: hidden; background: #000; }
         .safe-bottom { padding-bottom: calc(1.5rem + env(safe-area-inset-bottom)); }
         #scanNotice { transition: all 0.3s ease; transform: translateY(150%); z-index: 100; }
         #scanNotice.show { transform: translateY(0); }
@@ -37,14 +35,14 @@
         <div class="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-6">
             <div class="text-center mb-4">
                 <span class="text-4xl">🤔</span>
-                <h3 class="text-xl font-black text-slate-800 mt-2 italic uppercase tracking-tighter">Produit Inconnu</h3>
+                <h3 class="text-xl font-black text-slate-800 mt-2 italic uppercase tracking-tighter">Inconnu</h3>
                 <p class="text-[10px] font-bold text-blue-500 uppercase mt-1">Code : <span id="displayBarcode"></span></p>
             </div>
             <div class="space-y-4">
                 <input type="text" id="learnInput" oninput="suggestFromList()" placeholder="Nom du produit..." class="w-full p-4 bg-slate-100 border-2 border-slate-100 rounded-2xl font-bold focus:border-blue-500 outline-none">
                 <div id="learningSuggestions" class="max-h-40 overflow-y-auto space-y-2"></div>
                 <button onclick="submitLearning()" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg uppercase">Mémoriser</button>
-                <button onclick="closeUnknownModal()" class="w-full py-2 text-slate-400 font-bold uppercase text-[10px]">Passer</button>
+                <button onclick="closeUnknownModal()" class="w-full py-2 text-slate-400 font-bold uppercase text-[10px]">Annuler</button>
             </div>
         </div>
     </div>
@@ -114,12 +112,15 @@
                     <div id="scannerContainer" class="bg-white p-3 rounded-[2rem] shadow-lg border border-slate-100">
                         <div id="reader"></div>
                         <div class="flex justify-between items-center mt-3 px-2">
-                            <span id="lastScannedName" class="text-[10px] font-bold text-blue-600 truncate max-w-[70%] italic">Scanner prêt</span>
+                            <div class="flex flex-col">
+                                <span id="lastScannedName" class="text-[10px] font-bold text-blue-600 truncate max-w-[150px] italic">Prêt...</span>
+                                <span class="text-[8px] text-slate-400 uppercase font-black">Gardez 15cm de distance</span>
+                            </div>
                             <button onclick="toggleScanner()" id="btnToggleScanner" class="bg-red-50 text-red-600 px-4 py-1.5 rounded-full text-[9px] font-black uppercase">Stop</button>
                         </div>
                     </div>
                     <div id="itemsList" class="space-y-3 pt-2"></div>
-                    <button onclick="archiveOrder()" class="w-full bg-green-500 text-white font-black py-6 rounded-[2.2rem] shadow-xl mt-10 uppercase text-sm">Terminer livraison</button>
+                    <button onclick="archiveOrder()" class="w-full bg-green-500 text-white font-black py-6 rounded-[2.2rem] shadow-xl mt-10 uppercase text-sm">Archiver la livraison</button>
                     <button onclick="resetApp()" class="w-full py-4 text-slate-300 text-[10px] font-bold uppercase text-center">Annuler / Reset</button>
                 </section>
             </div>
@@ -148,6 +149,7 @@
         pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
         let shoppingList = [], isScanning = false, lastCode = "", lastScanTime = 0, isProcessingScan = false, currentSyncId = null, currentBatchName = null, pendingBarcode = "";
+        let html5QrCode = null;
 
         const NOISE_WORDS = ["bio", "petit", "pot", "pots", "bols", "maman", "idee", "tout", "petits", "des", "mois", "ans", "aux", "avec", "sans", "sucre", "ajoutes", "materne", "hipp", "nature", "fraiche", "fraîche", "fermier", "fermière", "produit", "calibre", "moyen", "direct", "producteur"];
         const CATEGORIES = {
@@ -246,43 +248,37 @@
                 if (data) shoppingList = data;
                 subscribeToChanges(); setLoading(false);
             }
-            showStep('step2'); localStorage.setItem('ch_active_session', JSON.stringify(shoppingList));
+            showStep('step2'); 
+            localStorage.setItem('ch_active_session', JSON.stringify(shoppingList));
             renderList(); setTimeout(toggleScanner, 500);
         }
 
-        // --- SCANNER OPTIMISÉ POUR IPHONE (ANTI-LENS HUNTING) ---
-        function toggleScanner() {
-            if (isScanning) { Quagga.stop(); isScanning = false; document.getElementById('btnToggleScanner').innerText = "Start"; } 
-            else {
-                Quagga.init({
-                    inputStream: { 
-                        name: "Live", type: "LiveStream", target: document.querySelector('#reader'),
-                        constraints: { 
-                            facingMode: "environment",
-                            // On demande du 720p stable plutôt que du 1080p pour éviter le switch d'objectif incessant
-                            width: { min: 640, ideal: 1280 },
-                            height: { min: 480, ideal: 720 },
-                            aspectRatio: { ideal: 1.7777777778 }
-                        },
+        // --- NOUVEAU SCANNER HTLM5-QRCODE (OPTIMISÉ FOCUS) ---
+        async function toggleScanner() {
+            if (isScanning) {
+                if(html5QrCode) await html5QrCode.stop();
+                isScanning = false;
+                document.getElementById('btnToggleScanner').innerText = "Start";
+            } else {
+                if(!html5QrCode) html5QrCode = new Html5Qrcode("reader");
+                const config = { 
+                    fps: 20, 
+                    qrbox: (viewWidth, viewHeight) => { return { width: viewWidth * 0.8, height: viewWidth * 0.8 }; },
+                    aspectRatio: 1.0,
+                    experimentalFeatures: {
+                        useBarCodeDetectorIfSupported: true // MOTEUR IA NATIF APPLE (FOCUS 360°)
                     },
-                    locator: { patchSize: "medium", halfSample: false },
-                    decoder: { readers: ["ean_reader", "ean_8_reader", "upc_reader", "code_128_reader"] },
-                    locate: true
-                }, (err) => { 
-                    if (err) return; 
-                    Quagga.start(); 
-                    isScanning = true; 
-                    document.getElementById('btnToggleScanner').innerText = "Stop";
-                    
-                    // Fix focus stable sur iOS
-                    const track = Quagga.CameraAccess.getActiveTrack();
-                    if (track && typeof track.getCapabilities === 'function') {
-                        const caps = track.getCapabilities();
-                        if (caps.focusMode && caps.focusMode.includes('continuous')) {
-                            track.applyConstraints({ advanced: [{ focusMode: "continuous" }] });
-                        }
+                    videoConstraints: {
+                        facingMode: "environment",
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
                     }
-                });
+                };
+                try {
+                    await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess);
+                    isScanning = true;
+                    document.getElementById('btnToggleScanner').innerText = "Stop";
+                } catch (e) { alert("Caméra bloquée"); }
             }
         }
 
@@ -303,8 +299,17 @@
             return null;
         }
 
+        async function onScanSuccess(code) {
+            const now = Date.now();
+            if (isProcessingScan || (code === lastCode && now - lastScanTime < 5000)) return;
+            isProcessingScan = true; lastCode = code; lastScanTime = now;
+            const name = await getProductName(code);
+            if (name) { document.getElementById('lastScannedName').innerText = name; smartMatch(name); }
+            else { isProcessingScan = false; }
+        }
+
         function openUnknownModal(code) {
-            if (isScanning) Quagga.stop();
+            if (isScanning) html5QrCode.pause(true);
             pendingBarcode = code;
             document.getElementById('displayBarcode').innerText = code;
             document.getElementById('learnInput').value = "";
@@ -312,7 +317,11 @@
             document.getElementById('unknownModal').classList.remove('hidden');
         }
 
-        function closeUnknownModal() { document.getElementById('unknownModal').classList.add('hidden'); isProcessingScan = false; if (isScanning) Quagga.start(); }
+        function closeUnknownModal() { 
+            document.getElementById('unknownModal').classList.add('hidden'); 
+            isProcessingScan = false; 
+            if (isScanning) html5QrCode.resume(); 
+        }
 
         function suggestFromList() {
             const query = document.getElementById('learnInput').value.toLowerCase();
@@ -336,33 +345,20 @@
             smartMatch(name);
         }
 
-        Quagga.onDetected(async (data) => {
-            const code = data.codeResult.code; const now = Date.now();
-            if (!code || isProcessingScan || (code === lastCode && now - lastScanTime < 5000)) return;
-            isProcessingScan = true; lastCode = code; lastScanTime = now;
-            const name = await getProductName(code);
-            if (name) { document.getElementById('lastScannedName').innerText = name; smartMatch(name); }
-            else { isProcessingScan = false; }
-        });
-
         function smartMatch(scannedName) {
             const normalize = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[.,()]/g, "").split(" ")
                                     .filter(w => w.length > 2 && !NOISE_WORDS.includes(w));
             const scannedWords = normalize(scannedName);
-            
             let matches = shoppingList.filter(item => {
                 if (item.scanned) return false;
                 const itemWords = normalize(item.name);
                 const hasSolidMatch = scannedWords.some(sw => itemWords.includes(sw));
-                const sLow = scannedName.toLowerCase();
-                const iLow = item.name.toLowerCase();
-                
+                const sLow = scannedName.toLowerCase(), iLow = item.name.toLowerCase();
                 if (sLow.includes("creme") && !iLow.includes("creme")) return false;
                 if (sLow.includes("feve") && !iLow.includes("feve")) return false;
                 if (sLow.includes("poulet") && !iLow.includes("poulet")) return false;
                 if (sLow.includes("banane") && !iLow.includes("banane")) return false;
                 if (sLow.includes("pomme") && !iLow.includes("pomme")) return false;
-
                 let score = 0; scannedWords.forEach(sw => { if (itemWords.includes(sw)) score++; });
                 return hasSolidMatch && (score >= 2 || (scannedWords.length === 1 && score === 1));
             });
@@ -376,7 +372,7 @@
         }
 
         function openSelectionModal(candidates, isBatch = false) {
-            if (isScanning) Quagga.stop();
+            if (isScanning) html5QrCode.pause(true);
             const container = document.getElementById('modalChoices'), batchContainer = document.getElementById('batchActionContainer');
             container.innerHTML = '';
             document.getElementById('modalTitle').innerText = isBatch ? "Plusieurs exemplaires ?" : "Lequel avez-vous ?";
@@ -403,7 +399,11 @@
             renderList(); setLoading(false); closeSelectionModal(); showFlash("Lot Validé", currentBatchName, "success");
         }
 
-        function closeSelectionModal() { document.getElementById('selectionModal').classList.add('hidden'); isProcessingScan = false; if (isScanning) Quagga.start(); }
+        function closeSelectionModal() { 
+            document.getElementById('selectionModal').classList.add('hidden'); 
+            isProcessingScan = false; 
+            if (isScanning) html5QrCode.resume(); 
+        }
 
         async function toggleItemState(item) {
             item.scanned = !item.scanned;
@@ -448,20 +448,20 @@
         
         async function archiveOrder() {
             if (shoppingList.length === 0) return;
-            const history = JSON.parse(localStorage.getItem('ch_h_v39') || '[]');
+            const history = JSON.parse(localStorage.getItem('ch_h_v40') || '[]');
             history.unshift({ id: Date.now(), date: new Date().toLocaleString('fr-FR'), score: shoppingList.filter(i => i.scanned).length, total: shoppingList.length, items: shoppingList });
-            localStorage.setItem('ch_h_v39', JSON.stringify(history));
+            localStorage.setItem('ch_h_v40', JSON.stringify(history));
             if (currentSyncId) await dbClient.from('shopping_items').delete().eq('session_id', currentSyncId);
             localStorage.removeItem('ch_active_session'); location.reload();
         }
 
         function renderHistory() {
             const container = document.getElementById('history-container');
-            const history = JSON.parse(localStorage.getItem('ch_h_v39') || '[]');
-            if (history.length === 0) { container.innerHTML = `<p class="text-center py-20 text-slate-300 font-bold uppercase text-xs">Vide</p>`; return; }
+            const history = JSON.parse(localStorage.getItem('ch_h_v40') || '[]');
+            if (history.length === 0) { container.innerHTML = `<p class="text-center py-20 text-slate-300 font-bold uppercase text-xs">Archives vides</p>`; return; }
             container.innerHTML = history.map(o => `
                 <div class="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden mb-4 p-6">
-                    <div class="flex justify-between items-center mb-4">
+                    <div class="flex justify-between items-center">
                         <details class="flex-1 group">
                             <summary class="list-none cursor-pointer flex justify-between items-center pr-4">
                                 <div><p class="text-[9px] font-black text-blue-500 uppercase">${o.date}</p><h3 class="font-bold">Livraison</h3></div>
@@ -477,13 +477,13 @@
         }
 
         function deleteOrder(id) {
-            let history = JSON.parse(localStorage.getItem('ch_h_v39') || '[]');
+            let history = JSON.parse(localStorage.getItem('ch_h_v40') || '[]');
             history = history.filter(o => o.id !== id);
-            localStorage.setItem('ch_h_v39', JSON.stringify(history));
+            localStorage.setItem('ch_h_v40', JSON.stringify(history));
             renderHistory();
         }
 
-        function clearHistory() { if(confirm("Vider tout ?")) { localStorage.removeItem('ch_h_v39'); renderHistory(); } }
+        function clearHistory() { if(confirm("Supprimer toutes les archives ?")) { localStorage.removeItem('ch_h_v40'); renderHistory(); } }
         function setLoading(show) { document.getElementById('loadingOverlay').classList.toggle('hidden', !show); }
         async function resetApp() { if(confirm("Voulez-vous tout effacer ?")) { if (currentSyncId) await dbClient.from('shopping_items').delete().eq('session_id', currentSyncId); localStorage.removeItem('ch_active_session'); location.reload(); } }
         document.getElementById('rawTextEditor').addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') confirmList(); });
