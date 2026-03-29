@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CheckCourses V36 - Intelligence</title>
+    <title>CheckCourses V37 - Précision</title>
     
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛒</text></svg>">
     <link rel="apple-touch-icon" href="IMG_0060.png">
@@ -15,7 +15,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
-        .loader { border-top-color: #3b82f6; animation: spinner 1.5s linear infinite; }
+        .loader { border-top-color: #3b82f6; animation: spinner 1s linear infinite; }
         @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .checked-item { background-color: #f0fdf4 !important; opacity: 0.5; border-color: transparent !important; }
         .checked-text { text-decoration: line-through; color: #166534; }
@@ -30,7 +30,7 @@
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-900 font-sans select-none">
 
-    <!-- MODAL APPRENTISSAGE (PRODUIT INCONNU) -->
+    <!-- MODAL APPRENTISSAGE -->
     <div id="unknownModal" class="hidden fixed inset-0 z-[300] flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-md"></div>
         <div class="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-6 overflow-hidden">
@@ -40,22 +40,22 @@
                 <p class="text-[10px] font-bold text-blue-500 uppercase tracking-widest mt-1">Code : <span id="displayBarcode"></span></p>
             </div>
             <div class="space-y-4">
-                <input type="text" id="learnInput" oninput="suggestFromList()" placeholder="Nom du produit..." class="w-full p-4 bg-slate-100 border-2 border-slate-100 rounded-2xl font-bold focus:border-blue-500 outline-none">
+                <input type="text" id="learnInput" oninput="suggestFromList()" placeholder="Chercher dans ma liste..." class="w-full p-4 bg-slate-100 border-2 border-slate-100 rounded-2xl font-bold focus:border-blue-500 outline-none">
                 <div id="learningSuggestions" class="max-h-40 overflow-y-auto space-y-2"></div>
-                <button onclick="submitLearning()" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg uppercase">Mémoriser cet article</button>
-                <button onclick="closeUnknownModal()" class="w-full py-2 text-slate-400 font-bold uppercase text-[10px]">Passer</button>
+                <button onclick="submitLearning()" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg uppercase">Mémoriser</button>
+                <button onclick="closeUnknownModal()" class="w-full py-2 text-slate-400 font-bold uppercase text-[10px]">Annuler</button>
             </div>
         </div>
     </div>
 
-    <!-- MODAL AMBIGUÏTÉ / LOT -->
+    <!-- MODAL AMBIGUÏTÉ -->
     <div id="selectionModal" class="hidden fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4">
         <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"></div>
         <div class="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-6">
             <h3 id="modalTitle" class="text-xl font-black text-slate-800 mb-2 italic">Lequel avez-vous ?</h3>
             <div id="modalChoices" class="space-y-3 max-h-[40vh] overflow-y-auto mb-6 pr-2"></div>
-            <div id="batchActionContainer" class="hidden mb-4"><button onclick="validateBatch()" class="w-full bg-green-600 text-white font-black py-4 rounded-2xl shadow-lg uppercase">Valider tout le lot</button></div>
-            <button onclick="closeSelectionModal()" class="w-full py-4 text-slate-400 font-black uppercase text-[10px]">Annuler</button>
+            <div id="batchActionContainer" class="hidden mb-4"><button onclick="validateBatch()" class="w-full bg-green-600 text-white font-black py-4 rounded-2xl shadow-lg uppercase">Valider le lot entier</button></div>
+            <button onclick="closeSelectionModal()" class="w-full py-4 text-slate-400 font-black uppercase text-[10px]">Passer</button>
         </div>
     </div>
 
@@ -69,7 +69,7 @@
     <!-- LOADING -->
     <div id="loadingOverlay" class="hidden fixed inset-0 bg-white/95 z-[110] flex flex-col items-center justify-center p-8 text-center">
         <div class="loader w-14 h-14 border-4 border-slate-200 rounded-full mb-6"></div>
-        <h2 class="text-xl font-black italic text-blue-600">ANALYSE...</h2>
+        <h2 class="text-xl font-black italic text-blue-600 uppercase">Analyse en cours...</h2>
     </div>
 
     <div class="max-w-md mx-auto pb-32">
@@ -79,7 +79,7 @@
                 <div id="main-counter" class="bg-blue-600 text-white text-[10px] font-black px-3 py-1.5 rounded-full shadow-sm">0/0</div>
             </div>
             <div id="searchBar" class="px-4 py-3 bg-slate-50 flex gap-2">
-                <input type="text" id="manualSearchInput" oninput="renderList()" placeholder="Recherche manuelle..." class="w-full pl-4 pr-4 py-3 bg-white border-2 border-slate-200 rounded-2xl text-sm font-bold outline-none">
+                <input type="text" id="manualSearchInput" oninput="renderList()" placeholder="Filtrer ma liste..." class="w-full pl-4 pr-4 py-3 bg-white border-2 border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-blue-500 transition-all">
             </div>
         </header>
 
@@ -96,15 +96,15 @@
 
                 <section id="step1" class="step-content hidden text-center">
                     <div class="bg-white p-10 rounded-[3rem] shadow-sm border border-slate-200">
-                        <div class="text-6xl mb-6 text-slate-300 italic">FACTURATION</div>
-                        <label class="block cursor-pointer bg-blue-600 text-white font-black py-5 px-8 rounded-3xl shadow-xl active:scale-95 transition text-lg uppercase">Ouvrir Document<input type="file" id="fileInput" class="hidden" accept="image/*,.pdf" onchange="startProcess(this)"></label>
+                        <div class="text-2xl font-black mb-6 text-slate-300 uppercase italic tracking-tighter">Facture PDF</div>
+                        <label class="block cursor-pointer bg-blue-600 text-white font-black py-5 px-8 rounded-3xl shadow-xl active:scale-95 transition text-lg uppercase">Importer le Bon<input type="file" id="fileInput" class="hidden" accept="image/*,.pdf" onchange="startProcess(this)"></label>
                     </div>
                 </section>
 
                 <section id="stepReview" class="step-content hidden space-y-4">
                     <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
-                        <textarea id="rawTextEditor" class="w-full h-80 p-5 border-2 border-slate-100 rounded-2xl text-sm font-medium outline-none"></textarea>
-                        <button onclick="confirmList()" class="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl mt-4 uppercase">Démarrer</button>
+                        <textarea id="rawTextEditor" class="w-full h-80 p-5 border-2 border-slate-100 rounded-2xl text-sm font-medium outline-none focus:border-blue-500"></textarea>
+                        <button onclick="confirmList()" class="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl mt-4 uppercase tracking-widest">Confirmer la liste</button>
                     </div>
                 </section>
 
@@ -112,20 +112,20 @@
                     <div id="scannerContainer" class="bg-white p-3 rounded-[2rem] shadow-lg border border-slate-100">
                         <div id="reader"></div>
                         <div class="flex justify-between items-center mt-3 px-2">
-                            <span id="lastScannedName" class="text-[10px] font-bold text-blue-600 truncate max-w-[70%]">...</span>
-                            <button onclick="toggleScanner()" id="btnToggleScanner" class="bg-red-50 text-red-600 px-4 py-1.5 rounded-full text-[9px] font-black uppercase">Stop</button>
+                            <span id="lastScannedName" class="text-[10px] font-bold text-blue-600 truncate max-w-[70%] italic">Visez un code...</span>
+                            <button onclick="toggleScanner()" id="btnToggleScanner" class="bg-red-50 text-red-600 px-4 py-1.5 rounded-full text-[9px] font-black uppercase">Arrêter</button>
                         </div>
                     </div>
                     <div id="itemsList" class="space-y-3 pt-2"></div>
-                    <button onclick="archiveOrder()" class="w-full bg-green-500 text-white font-black py-6 rounded-[2.2rem] shadow-xl mt-10 uppercase text-sm">Terminer</button>
-                    <button onclick="resetApp()" class="w-full py-4 text-slate-300 text-[10px] font-bold uppercase text-center">Reset</button>
+                    <button onclick="archiveOrder()" class="w-full bg-green-500 text-white font-black py-6 rounded-[2.2rem] shadow-xl mt-10 uppercase text-sm">Archiver la livraison</button>
+                    <button onclick="resetApp()" class="w-full py-4 text-slate-300 text-[10px] font-bold uppercase text-center">Annuler / Reset</button>
                 </section>
             </div>
 
             <div id="view-history" class="hidden space-y-6">
                 <div class="flex justify-between items-center px-2">
                     <h2 class="text-2xl font-black italic uppercase">Archives</h2>
-                    <button onclick="clearHistory()" class="text-[10px] font-black text-red-500 bg-red-50 px-3 py-2 rounded-full uppercase">Vider Tout</button>
+                    <button onclick="clearHistory()" class="text-[10px] font-black text-red-500 bg-red-50 px-3 py-2 rounded-full uppercase">Vider</button>
                 </div>
                 <div id="history-container" class="space-y-4"></div>
             </div>
@@ -147,7 +147,9 @@
 
         let shoppingList = [], isScanning = false, lastCode = "", lastScanTime = 0, isProcessingScan = false, currentSyncId = null, currentBatchName = null, pendingBarcode = "";
 
-        const NOISE_WORDS = ["bio", "petit", "pot", "pots", "bols", "maman", "idee", "tout", "petits", "des", "mois", "ans", "aux", "avec", "sans", "sucre", "ajoutes", "materne", "hipp"];
+        // --- MOTS PARASITES ÉTENDUS POUR ÉVITER LES MAUVAIS MATCHS ---
+        const NOISE_WORDS = ["bio", "petit", "pot", "pots", "bols", "maman", "idee", "tout", "petits", "des", "mois", "ans", "aux", "avec", "sans", "sucre", "ajoutes", "materne", "hipp", "nature", "fraiche", "fraîche", "fermier", "fermière", "produit", "calibre", "moyen", "direct", "producteur"];
+
         const CATEGORIES = {
             "FRAIS": { icon: "🥛", label: "Frais", keywords: /lait|yaourt|beurre|fromage|steak|jambon|poulet|oeuf|traiteur|chiffonnade|beillevaire|creme/i },
             "FRUITS": { icon: "🍎", label: "Fruits/Lég", keywords: /pomme|banane|tomate|carotte|salade|oignon|fruit|legume|poire|melon|mangue|mais|pois|fraise|peche|courgette|haricot|chou/i },
@@ -244,7 +246,8 @@
                 if (data) shoppingList = data;
                 subscribeToChanges(); setLoading(false);
             }
-            showStep('step2'); localStorage.setItem('ch_active_session', JSON.stringify(shoppingList));
+            showStep('step2'); 
+            localStorage.setItem('ch_active_session', JSON.stringify(shoppingList));
             renderList(); setTimeout(toggleScanner, 500);
         }
 
@@ -271,8 +274,7 @@
                 const dataBeauty = await resBeauty.json();
                 if (dataBeauty.status === 1) return dataBeauty.product.product_name_fr || dataBeauty.product.product_name;
                 
-                // --- APPRENTISSAGE CUSTOM ---
-                await new Promise(r => setTimeout(r, 1200));
+                await new Promise(r => setTimeout(r, 1500)); // DÉLAI D'APPRENTISSAGE ALLONGÉ
                 openUnknownModal(code);
             } catch (e) { console.error(e); }
             return null;
@@ -301,7 +303,7 @@
             const matches = shoppingList.filter(it => !it.scanned && it.name.toLowerCase().includes(query));
             matches.slice(0, 5).forEach(match => {
                 const div = document.createElement('div');
-                div.className = "p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs font-bold active:bg-blue-600 active:text-white transition-all";
+                div.className = "p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 text-sm font-bold active:bg-blue-600 active:text-white transition-all";
                 div.innerText = match.name;
                 div.onclick = () => { document.getElementById('learnInput').value = match.name; submitLearning(); };
                 container.appendChild(div);
@@ -322,30 +324,41 @@
             isProcessingScan = true; lastCode = code; lastScanTime = now;
             const name = await getProductName(code);
             if (name) { document.getElementById('lastScannedName').innerText = name; smartMatch(name); }
+            else { isProcessingScan = false; }
         });
 
+        // --- MATCHING STRICT V37 ---
         function smartMatch(scannedName) {
-            const normalize = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[.,()]/g, "").split(" ").filter(w => w.length > 2 && !NOISE_WORDS.includes(w));
+            const normalize = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[.,()]/g, "").split(" ")
+                                    .filter(w => w.length > 2 && !NOISE_WORDS.includes(w));
+            
             const scannedWords = normalize(scannedName);
+            
             let matches = shoppingList.filter(item => {
                 if (item.scanned) return false;
                 const itemWords = normalize(item.name);
-                const hasIngredientMatch = scannedWords.some(sw => itemWords.includes(sw));
-                const conflictIngredients = ["pomme", "banane", "poulet", "mais", "carotte", "veau", "nature", "fraise"];
-                let hasConflict = false;
-                conflictIngredients.forEach(ing => { if (scannedName.toLowerCase().includes(ing) && !item.name.toLowerCase().includes(ing)) hasConflict = true; });
-                if (hasConflict) return false;
+                
+                // Exigence : Au moins un mot UNIQUE et SIGNIFICATIF doit matcher
+                const hasSolidMatch = scannedWords.some(sw => itemWords.includes(sw));
+                
+                // Conflits bloquants (Ex: Crème vs Fève)
+                const sLow = scannedName.toLowerCase();
+                const iLow = item.name.toLowerCase();
+                if (sLow.includes("creme") && !iLow.includes("creme")) return false;
+                if (sLow.includes("feve") && !iLow.includes("feve")) return false;
+                if (sLow.includes("poulet") && !iLow.includes("poulet")) return false;
+                if (sLow.includes("banane") && !iLow.includes("banane")) return false;
+
                 let score = 0; scannedWords.forEach(sw => { if (itemWords.includes(sw)) score++; });
-                return hasIngredientMatch && score >= 1;
+                return hasSolidMatch && score >= 1;
             });
 
-            if (matches.length === 0) { showFlash("Non trouvé", scannedName, "warning"); isProcessingScan = false; }
+            if (matches.length === 0) { showFlash("Non trouvé", scannedName, "warning"); isProcessingScan = false; if(isScanning) Quagga.start(); }
             else if (matches.length === 1) { 
                 const sameCount = shoppingList.filter(i => i.name === matches[0].name && !i.scanned).length;
                 if (sameCount > 1) { currentBatchName = matches[0].name; openSelectionModal([matches[0]], true); }
                 else { toggleItemState(matches[0]); isProcessingScan = false; }
             } else { openSelectionModal(matches, false); }
-            if (isScanning && !document.getElementById('unknownModal').classList.contains('hidden')) Quagga.stop();
         }
 
         function openSelectionModal(candidates, isBatch = false) {
@@ -421,20 +434,20 @@
         
         async function archiveOrder() {
             if (shoppingList.length === 0) return;
-            const history = JSON.parse(localStorage.getItem('ch_hist_v36') || '[]');
+            const history = JSON.parse(localStorage.getItem('ch_h_v37') || '[]');
             history.unshift({ id: Date.now(), date: new Date().toLocaleString('fr-FR'), score: shoppingList.filter(i => i.scanned).length, total: shoppingList.length, items: shoppingList });
-            localStorage.setItem('ch_hist_v36', JSON.stringify(history));
+            localStorage.setItem('ch_h_v37', JSON.stringify(history));
             if (currentSyncId) await dbClient.from('shopping_items').delete().eq('session_id', currentSyncId);
             localStorage.removeItem('ch_active_session'); location.reload();
         }
 
         function renderHistory() {
             const container = document.getElementById('history-container');
-            const history = JSON.parse(localStorage.getItem('ch_hist_v36') || '[]');
-            if (history.length === 0) { container.innerHTML = `<p class="text-center py-20 text-slate-300 font-bold uppercase text-xs">Vide</p>`; return; }
+            const history = JSON.parse(localStorage.getItem('ch_h_v37') || '[]');
+            if (history.length === 0) { container.innerHTML = `<p class="text-center py-20 text-slate-300 font-bold uppercase text-xs">Archives vides</p>`; return; }
             container.innerHTML = history.map(o => `
                 <div class="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden mb-4 p-6">
-                    <div class="flex justify-between items-center">
+                    <div class="flex justify-between items-center mb-4">
                         <details class="flex-1 group">
                             <summary class="list-none cursor-pointer flex justify-between items-center pr-4">
                                 <div><p class="text-[9px] font-black text-blue-500 uppercase">${o.date}</p><h3 class="font-bold">Livraison</h3></div>
@@ -444,19 +457,19 @@
                                 ${o.items.map(it => `<p class="text-[10px] ${it.scanned ? 'text-slate-400' : 'text-red-500 font-bold'}">${it.scanned ? '✅' : '❌'} ${it.name}</p>`).join('')}
                             </div>
                         </details>
-                        <button onclick="deleteOrder(${o.id})" class="p-3 bg-red-50 text-red-500 rounded-2xl active:scale-90 transition-transform">🗑️</button>
+                        <button onclick="deleteOrder(${o.id})" class="p-3 bg-red-50 text-red-500 rounded-2xl active:scale-90 transition-transform text-sm">🗑️</button>
                     </div>
                 </div>`).join('');
         }
 
         function deleteOrder(id) {
-            let history = JSON.parse(localStorage.getItem('ch_hist_v36') || '[]');
+            let history = JSON.parse(localStorage.getItem('ch_h_v37') || '[]');
             history = history.filter(o => o.id !== id);
-            localStorage.setItem('ch_hist_v36', JSON.stringify(history));
+            localStorage.setItem('ch_h_v37', JSON.stringify(history));
             renderHistory();
         }
 
-        function clearHistory() { if(confirm("Vider l'historique ?")) { localStorage.removeItem('ch_hist_v36'); renderHistory(); } }
+        function clearHistory() { if(confirm("Supprimer toutes les archives ?")) { localStorage.removeItem('ch_h_v37'); renderHistory(); } }
         function setLoading(show) { document.getElementById('loadingOverlay').classList.toggle('hidden', !show); }
         async function resetApp() { if(confirm("Voulez-vous tout effacer ?")) { if (currentSyncId) await dbClient.from('shopping_items').delete().eq('session_id', currentSyncId); localStorage.removeItem('ch_active_session'); location.reload(); } }
         document.getElementById('rawTextEditor').addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') confirmList(); });
