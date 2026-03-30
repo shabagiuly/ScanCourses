@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CheckCourses V43</title>
+    <title>CheckCourses V44</title>
     
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛒</text></svg>">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🛒%3C/text%3E%3C/svg%3E">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -36,8 +36,7 @@
         <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"></div>
         <div class="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-6 overflow-hidden">
             <h3 id="modalTitle" class="text-xl font-black mb-2 italic">Lequel est-ce ?</h3>
-            <p id="modalSubtitle" class="text-[10px] text-slate-400 uppercase font-bold mb-4 tracking-widest"></p>
-            <div id="modalChoices" class="space-y-3 max-h-[50vh] overflow-y-auto mb-6 pr-2"></div>
+            <div id="modalChoices" class="space-y-3 max-h-[45vh] overflow-y-auto mb-6 pr-2"></div>
             <div id="batchActionContainer" class="hidden mb-4"><button onclick="validateBatch()" class="w-full bg-green-600 text-white font-black py-4 rounded-2xl shadow-lg uppercase">Tout valider ✅</button></div>
             <button onclick="closeSelectionModal()" class="w-full py-4 text-slate-400 font-black uppercase text-[10px]">Fermer</button>
         </div>
@@ -104,7 +103,7 @@
                     </div>
                     <div id="itemsList" class="space-y-3 pt-2"></div>
                     <button onclick="archiveOrder()" class="w-full bg-green-500 text-white font-black py-6 rounded-[2.2rem] shadow-xl mt-10 uppercase text-sm">Finir Livraison</button>
-                    <button onclick="resetApp()" class="w-full py-4 text-slate-300 text-[9px] font-bold uppercase text-center tracking-widest">Reset</button>
+                    <button onclick="resetApp()" class="w-full py-4 text-slate-300 text-[10px] font-bold uppercase text-center tracking-widest">Reset</button>
                 </section>
             </div>
 
@@ -245,30 +244,50 @@
             }
         }
 
+        // --- WATERFALL API AMÉLIORÉ ---
         async function getProductName(code) {
             try {
                 pendingBarcode = code;
+                
+                // 1. Base mémorisée (Supabase)
+                document.getElementById('lastScannedName').innerText = "Vérif mémoire...";
                 const { data: custom } = await dbClient.from('custom_products').select('name').eq('barcode', code).single();
                 if (custom) return custom.name;
+
+                // 2. Open Food Facts (Alimentaire)
+                document.getElementById('lastScannedName').innerText = "Recherche Alimentaire...";
                 const resFood = await fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`);
-                const dataFood = await resFood.json();
-                if (dataFood.status === 1) return dataFood.product.product_name_fr || dataFood.product.product_name;
+                if (resFood.ok) {
+                    const dataFood = await resFood.json();
+                    if (dataFood.status === 1) return dataFood.product.product_name_fr || dataFood.product.product_name;
+                }
+
+                // 3. Open Beauty Facts (Hygiène)
+                document.getElementById('lastScannedName').innerText = "Recherche Hygiène...";
                 const resBeauty = await fetch(`https://world.openbeautyfacts.org/api/v0/product/${code}.json`);
-                const dataBeauty = await resBeauty.json();
-                if (dataBeauty.status === 1) return dataBeauty.product.product_name_fr || dataBeauty.product.product_name;
+                if (resBeauty.ok) {
+                    const dataBeauty = await resBeauty.json();
+                    if (dataBeauty.status === 1) return dataBeauty.product.product_name_fr || dataBeauty.product.product_name;
+                }
+                
                 return null;
-            } catch (e) { return null; }
+            } catch (e) { 
+                console.error("Waterfall Error", e);
+                return null; 
+            }
         }
 
         Quagga.onDetected(async (data) => {
             const code = data.codeResult.code; const now = Date.now();
             if (!code || isProcessingScan || (code === lastCode && now - lastScanTime < 5000)) return;
             isProcessingScan = true; lastCode = code; lastScanTime = now;
+            
             const name = await getProductName(code);
             if (name) { 
                 document.getElementById('lastScannedName').innerText = name; 
                 smartMatch(name, code); 
             } else { 
+                // DECLENCHEMENT SYSTEMATIQUE SI TOUT ECHOUÉ
                 openManualLinkModal(code);
             }
         });
@@ -283,6 +302,8 @@
                 const sLow = scannedName.toLowerCase(), iLow = item.name.toLowerCase();
                 if (sLow.includes("creme") && !iLow.includes("creme")) return false;
                 if (sLow.includes("poulet") && !iLow.includes("poulet")) return false;
+                if (sLow.includes("banane") && !iLow.includes("banane")) return false;
+                if (sLow.includes("pomme") && !iLow.includes("pomme")) return false;
                 let score = 0; scannedWords.forEach(sw => { if (itemWords.includes(sw)) score++; });
                 return hasSolidMatch && (score / scannedWords.length >= 0.3);
             });
@@ -300,7 +321,6 @@
             }
         }
 
-        // --- LIAISON MANUELLE AVEC RECHERCHE ---
         function openManualLinkModal(barcode, apiName = "Inconnu") {
             if (isScanning) Quagga.stop();
             const container = document.getElementById('modalChoices');
@@ -314,10 +334,8 @@
                 </div>
                 <div id="linkChoicesContainer" class="space-y-2 pb-4"></div>
             `;
-
             const searchInput = document.getElementById('linkSearchInput');
             const listContainer = document.getElementById('linkChoicesContainer');
-
             const updateList = (filter = "") => {
                 listContainer.innerHTML = '';
                 const filtered = shoppingList.filter(i => !i.scanned && i.name.toLowerCase().includes(filter.toLowerCase()));
@@ -332,12 +350,9 @@
                     };
                     listContainer.appendChild(btn);
                 });
-                if (filtered.length === 0) { listContainer.innerHTML = '<p class="text-center py-4 text-xs font-bold text-slate-300">Aucun produit restant</p>'; }
             };
-
             searchInput.oninput = (e) => updateList(e.target.value);
             updateList();
-
             document.getElementById('modalTitle').innerText = "Liaison Manuelle";
             document.getElementById('selectionModal').classList.remove('hidden');
         }
@@ -354,7 +369,7 @@
                 batchContainer.classList.add('hidden');
                 candidates.forEach(item => {
                     const btn = document.createElement('button');
-                    btn.className = "w-full text-left p-4 rounded-2xl border-2 border-slate-100 bg-slate-50 font-bold text-sm active:bg-blue-600 active:text-white";
+                    btn.className = "w-full text-left p-4 rounded-2xl border-2 border-slate-100 bg-slate-50 font-bold text-sm active:bg-blue-600 active:text-white transition-all";
                     btn.innerText = item.name; btn.onclick = () => { toggleItemState(item); closeSelectionModal(); };
                     container.appendChild(btn);
                 });
