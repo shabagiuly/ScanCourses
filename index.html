@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CheckCourses V46 - Smart Learning</title>
+    <title>CheckCourses V47 - Précision Nom</title>
     
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🛒%3C/text%3E%3C/svg%3E">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛒</text></svg>">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -31,11 +31,11 @@
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-900 font-sans select-none">
 
-    <!-- MODAL LIAISON MANUELLE / AMBIGUÏTÉ / APPRENTISSAGE -->
+    <!-- MODAL LIAISON MANUELLE -->
     <div id="selectionModal" class="hidden fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4">
         <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"></div>
         <div class="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-6 overflow-hidden flex flex-col max-h-[90vh]">
-            <h3 id="modalTitle" class="text-xl font-black mb-2 italic">Associer le produit</h3>
+            <h3 id="modalTitle" class="text-xl font-black mb-2 italic">Liaison Manuelle</h3>
             <div id="modalChoices" class="overflow-y-auto mb-6 pr-2"></div>
             <div id="batchActionContainer" class="hidden mb-4"><button onclick="validateBatch()" class="w-full bg-green-600 text-white font-black py-4 rounded-2xl shadow-lg uppercase">Valider tout le lot ✅</button></div>
             <button onclick="closeSelectionModal()" class="w-full py-4 text-slate-400 font-black uppercase text-[10px]">Fermer</button>
@@ -44,7 +44,7 @@
 
     <!-- NOTIFICATION FLASH -->
     <div id="scanNotice" class="fixed inset-x-0 bottom-24 mx-4 p-5 rounded-[2rem] shadow-2xl flex flex-col items-center justify-center text-center border-4 hidden text-white">
-        <div id="noticeIcon" class="text-3xl mb-1"></div>
+        <div id="noticeIcon" class="text-4xl mb-1"></div>
         <div id="noticeTitle" class="text-base font-black uppercase"></div>
         <div id="noticeMsg" class="text-[10px] font-bold opacity-90"></div>
     </div>
@@ -109,7 +109,7 @@
 
             <div id="view-history" class="hidden space-y-6">
                 <div class="flex justify-between items-center px-2">
-                    <h2 class="text-xl font-black italic uppercase text-slate-800 tracking-tighter">Archives</h2>
+                    <h2 class="text-xl font-black italic uppercase text-slate-800">Archives</h2>
                     <button onclick="clearHistory()" class="text-[10px] font-black text-red-500 bg-red-50 px-3 py-1.5 rounded-full uppercase">Vider</button>
                 </div>
                 <div id="history-container" class="space-y-4"></div>
@@ -162,11 +162,12 @@
             const code = document.getElementById('syncCodeInput').value.trim().toLowerCase();
             if (!code) return alert("Entrez un code");
             currentSyncId = code;
+            document.getElementById('session-display').innerText = "☁️ Cloud : " + code;
             const { data } = await dbClient.from('shopping_items').select('*').eq('session_id', currentSyncId);
             if (data && data.length > 0) { shoppingList = data; showStep('step2'); renderList(); subscribeToChanges(); } else { showStep('step1'); }
         }
 
-        function skipSync() { currentSyncId = null; showStep('step1'); }
+        function skipSync() { currentSyncId = null; document.getElementById('session-display').innerText = "🏠 Local"; showStep('step1'); }
 
         function subscribeToChanges() {
             if (!dbClient || !currentSyncId) return;
@@ -258,21 +259,42 @@
             return null;
         }
 
+        // --- FONCTION D'EXTRACTION PRÉCISE (CORRECTION V47) ---
+        function formatSpecificName(product) {
+            const brand = product.brands ? product.brands.split(',')[0].trim() : "";
+            const name = product.product_name_fr || product.product_name || "";
+            const qty = product.quantity ? product.quantity : "";
+            
+            let fullName = name;
+            // Si la marque n'est pas déjà dans le nom, on l'ajoute au début
+            if (brand && !name.toLowerCase().includes(brand.toLowerCase())) {
+                fullName = brand + " " + name;
+            }
+            // On ajoute la quantité à la fin si elle existe
+            if (qty) fullName += " " + qty;
+            
+            return fullName.trim();
+        }
+
         async function getProductName(code) {
             try {
                 pendingBarcode = code;
                 const statusLabel = document.getElementById('lastScannedName');
+                
                 statusLabel.innerText = "🔍 Mémoire...";
                 const { data: custom } = await dbClient.from('custom_products').select('name').eq('barcode', code).single();
                 if (custom) return custom.name;
+
                 await new Promise(r => setTimeout(r, 200));
                 statusLabel.innerText = "🔍 Alimentaire...";
                 const dataFood = await fetchWithRetry(`https://world.openfoodfacts.org/api/v0/product/${code}.json`);
-                if (dataFood) return dataFood.product.product_name_fr || dataFood.product.product_name;
+                if (dataFood) return formatSpecificName(dataFood.product);
+
                 await new Promise(r => setTimeout(r, 300));
                 statusLabel.innerText = "🔍 Hygiène...";
                 const dataBeauty = await fetchWithRetry(`https://world.openbeautyfacts.org/api/v0/product/${code}.json`);
-                if (dataBeauty) return dataBeauty.product.product_name_fr || dataBeauty.product.product_name;
+                if (dataBeauty) return formatSpecificName(dataBeauty.product);
+                
                 return null;
             } catch (e) { return null; }
         }
@@ -281,6 +303,7 @@
             const code = data.codeResult.code; const now = Date.now();
             if (!code || isProcessingScan || (code === lastCode && now - lastScanTime < 5000)) return;
             isProcessingScan = true; lastCode = code; lastScanTime = now;
+            
             const name = await getProductName(code);
             if (name) { 
                 document.getElementById('lastScannedName').innerText = name; 
@@ -294,7 +317,6 @@
             const normalize = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[.,()]/g, "").split(" ")
                                     .filter(w => w.length > 2 && !NOISE_WORDS.includes(w));
             const scannedWords = normalize(scannedName);
-            
             let allPotentialMatches = shoppingList.filter(item => {
                 const itemWords = normalize(item.name);
                 const hasSolidMatch = scannedWords.some(sw => itemWords.includes(sw));
@@ -306,13 +328,10 @@
                 let score = 0; scannedWords.forEach(sw => { if (itemWords.includes(sw)) score++; });
                 return hasSolidMatch && (score / scannedWords.length >= 0.3);
             });
-
             let remainingMatches = allPotentialMatches.filter(i => !i.scanned);
-
             if (allPotentialMatches.length > 0 && remainingMatches.length === 0) {
                 showFlash("Déjà validé", scannedName, "warning"); isProcessingScan = false;
             } else if (remainingMatches.length === 0 || remainingMatches.length > 1) {
-                // CAS : Hesitation (Ambiguïté) OU pas de match -> Apprentissage
                 openManualLinkModal(barcode, scannedName, remainingMatches);
             } else if (remainingMatches.length === 1) {
                 const sameNameCount = shoppingList.filter(i => i.name === remainingMatches[0].name && !i.scanned).length;
@@ -321,13 +340,12 @@
             }
         }
 
-        // --- LIAISON MANUELLE AVEC APPRENTISSAGE ---
         function openManualLinkModal(barcode, apiName, suggestedItems = []) {
             if (isScanning) Quagga.stop();
             const container = document.getElementById('modalChoices');
             container.innerHTML = `
                 <div class="p-4 bg-blue-50 rounded-3xl mb-4 border border-blue-100 text-left">
-                    <p class="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-1 leading-none">Code détecté : ${barcode}</p>
+                    <p class="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-1 leading-none">Code : ${barcode}</p>
                     <p class="text-sm font-bold text-blue-700">${apiName}</p>
                 </div>
                 <div class="sticky top-0 bg-white pb-3 z-10">
@@ -335,15 +353,11 @@
                 </div>
                 <div id="linkChoicesContainer" class="space-y-2 pb-4"></div>
             `;
-
             const searchInput = document.getElementById('linkSearchInput');
             const listContainer = document.getElementById('linkChoicesContainer');
-
             const updateList = (filter = "") => {
                 listContainer.innerHTML = '';
-                // On fusionne les suggestions et le reste de la liste filtrée
                 const filtered = shoppingList.filter(i => !i.scanned && i.name.toLowerCase().includes(filter.toLowerCase()));
-                
                 filtered.forEach(item => {
                     const isSuggested = suggestedItems.some(si => si.id === item.id);
                     const btn = document.createElement('button');
@@ -357,10 +371,8 @@
                     listContainer.appendChild(btn);
                 });
             };
-
             searchInput.oninput = (e) => updateList(e.target.value);
             updateList();
-
             document.getElementById('modalTitle').innerText = suggestedItems.length > 0 ? "Choix multiple" : "Inconnu";
             document.getElementById('selectionModal').classList.remove('hidden');
         }
